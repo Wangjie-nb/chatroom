@@ -1,0 +1,711 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>🐍 贪吃蛇（熊出没）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  html, body { height: 100%; }
+  body {
+    font-family: "Comic Sans MS", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: linear-gradient(180deg, #87ceeb 0%, #b8e6b8 30%, #d4edda 60%, #fff3cd 100%);
+    color: #5d4037;
+    display: flex; flex-direction: column; align-items: center;
+    height: 100dvh; max-height: 100dvh; overflow: hidden; width: 100%;
+    max-width: 640px; margin: 0 auto;
+    touch-action: none; user-select: none; -webkit-user-select: none;
+  }
+  header {
+    width: 100%; display: flex; align-items: center; gap: .4rem;
+    background: linear-gradient(135deg, #8d6e63, #a1887f, #bcaaa4);
+    color: #fff; padding: .42rem .9rem;
+    box-shadow: 0 3px 10px rgba(141,110,99,.35);
+    border-bottom: 3px solid #6d4c41;
+  }
+  header button {
+    border: none; cursor: pointer; padding: .28rem .7rem; font-size: .85rem;
+    border-radius: 9px; background: rgba(255,255,255,.22); color: #fff; font-weight: 700;
+  }
+  header button:active { transform: scale(.95) }
+  header h1 { flex: 1; font-size: 1rem; text-align: center; font-weight: 700; text-shadow: 1px 1px 2px rgba(0,0,0,.2) }
+  #st { font-size: .72rem; opacity: .9; white-space: nowrap }
+  #modeBar {
+    width: 100%; display: flex; gap: .4rem; padding: .32rem .9rem;
+    background: rgba(255,248,225,.95); border-bottom: 1px dashed #d7ccc8;
+  }
+  #modeBar button {
+    flex: 1; border: 2px solid #ffe0b2; border-radius: 10px; padding: .28rem 0;
+    font-size: .88rem; font-weight: 700; cursor: pointer;
+    background: #fffaf0; color: #8d6e63;
+  }
+  #modeBar button.on { background: linear-gradient(135deg, #ff9800, #ffb74d); color: #fff; border-color: #f57c00 }
+  #stats {
+    width: 100%; display: flex; justify-content: space-between; align-items: center;
+    padding: .36rem 1.1rem; font-size: .88rem; font-weight: 700;
+    background: rgba(255,248,225,.9); border-bottom: 1px dashed #d7ccc8;
+  }
+  #stats b { color: #e65100 }
+  .hint { display: none }
+  #wrap { flex: 1; min-height: 0; width: 100%; padding: .5rem; display: flex; align-items: center; justify-content: center; }
+  #board {
+    position: relative;
+    background: rgba(46,125,50,.12);
+    border: 4px solid #8d6e63; border-radius: 16px; overflow: hidden;
+    box-shadow: 0 6px 22px rgba(0,0,0,.18);
+    background-image: linear-gradient(rgba(109,76,65,.08) 1px, transparent 1px),
+                      linear-gradient(90deg, rgba(109,76,65,.08) 1px, transparent 1px);
+    background-size: calc(100%/20) calc(100%/20);
+  }
+  canvas { display: block; width: 100%; height: 100%; }
+  .pause-tip {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    background: rgba(93,64,55,.85); color: #ffe0b2; padding: .4rem 1rem; border-radius: 12px;
+    font-weight: 700; font-size: .9rem; display: none; z-index: 5;
+  }
+  .tip { display: none }
+  #pvpPanel {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    z-index: 90; width: min(92vw, 430px); max-height: 82vh; overflow-y: auto;
+    box-sizing: border-box; padding: .8rem 1rem; display: none; flex-direction: column; gap: .5rem;
+    background: linear-gradient(160deg, #fff8e1, #ffe0b2);
+    border: 3px solid #8d6e63; border-radius: 16px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.35);
+  }
+  #pvpPanel .row { display: flex; gap: .5rem; align-items: center; justify-content: center }
+  #pvpPanel input {
+    flex: 1; border: 2px solid #ffe0b2; border-radius: 12px; padding: .4rem .6rem;
+    font-size: .9rem; background: #fffaf0; color: #5d4037; outline: none; text-align: center;
+    letter-spacing: .15em; min-width: 0;
+  }
+  #pvpPanel input:focus { border-color: #ff9800 }
+  #pvpPanel button {
+    border: none; cursor: pointer; padding: .45rem .9rem; font-size: .85rem; font-weight: 700;
+    border-radius: 12px; color: #fff; white-space: nowrap;
+    background: linear-gradient(135deg, #8d6e63, #a1887f);
+  }
+  #pvpPanel button.g { background: #fff3e0; color: #8d6e63; border: 2px solid #ffe0b2 }
+  #roomWait { display: none; flex-direction: column; gap: .4rem; padding: .1rem 0 }
+  #roomWait .row { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap }
+  #roomWait button { flex: 1; min-width: 110px }
+  #bReady.on { background: linear-gradient(135deg, #66bb6a, #81c784) !important; color: #fff !important }
+  #bStartIn {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    border: 3px solid #f57c00; cursor: pointer; padding: .9rem 2.2rem; font-size: 1.15rem;
+    border-radius: 999px; font-weight: 700; color: #fff; z-index: 6; display: none;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+    box-shadow: 0 6px 18px rgba(255,152,0,.5);
+  }
+  #bStartIn:active { transform: translate(-50%,-50%) scale(.95) }
+  #ctrl {
+    flex: none; width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: .4rem .8rem .6rem; gap: .8rem; box-sizing: border-box;
+    background: rgba(255,248,225,.92);
+    border-top: 2px dashed #d7ccc8;
+  }
+  #dpad { display: grid; grid-template-columns: 50px 50px 50px; grid-template-rows: 50px 50px 50px; gap: 3px }
+  #dpad .d {
+    width: 50px; height: 50px; border-radius: 12px; border: 2px solid #ffe0b2;
+    background: linear-gradient(135deg, #fff3e0, #ffe0b2); color: #e65100;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  #dpad .d:active { background: linear-gradient(135deg, #ffb74d, #ff9800); color: #fff }
+  #dpad .up { grid-column: 2; grid-row: 1 }
+  #dpad .drow { display: contents }
+  #dpad .drow .d:first-child { grid-column: 1; grid-row: 2 }
+  #dpad .drow .d:last-child { grid-column: 3; grid-row: 2 }
+  #dpad .dmid { grid-column: 2; grid-row: 2 }
+  #dpad .down { grid-column: 2; grid-row: 3 }
+  #boostWrap { display: flex; flex-direction: column; align-items: center; gap: .3rem }
+  #boostWrap .bl { font-size: .72rem; color: #8d6e63; font-weight: 700; text-align: center; line-height: 1.2 }
+  #bBoost {
+    width: 86px; height: 86px; border-radius: 50%; border: 4px solid #f57c00;
+    font-size: 2rem; cursor: pointer; color: #fff; line-height: 1;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+    box-shadow: 0 4px 14px rgba(255,152,0,.5);
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  #bBoost:active { transform: scale(.92) }
+  #bBoost.on {
+    background: linear-gradient(135deg, #e53935, #ff5252);
+    border-color: #c62828;
+    box-shadow: 0 4px 16px rgba(229,57,53,.6), 0 0 0 4px rgba(255,82,82,.25);
+  }
+  #roomInfo {
+    text-align: center; font-size: .85rem; font-weight: 700; color: #e65100;
+    padding: .15rem; display: none;
+  }
+  #roomInfo .code {
+    font-size: 1.3rem; letter-spacing: .3em; color: #ff9800; display: block; margin: .15rem 0;
+  }
+  #pvpStats {
+    width: 100%; display: none; justify-content: space-between; align-items: center;
+    padding: .5rem 1.2rem; font-weight: 700; font-size: .92rem;
+    background: rgba(255,248,225,.95); border-bottom: 2px dashed #d7ccc8;
+  }
+  #pvpStats .a { color: #f9a825 }
+  #pvpStats .b { color: #1e88e5 }
+  #mask {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.45);
+  }
+  #mask.open { display: flex }
+  #panel {
+    position: relative;
+    background: linear-gradient(160deg, #fff8e1, #ffe0b2);
+    border: 4px solid #8d6e63; border-radius: 20px; padding: 1.4rem 2rem; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3); max-width: 90vw;
+  }
+  #bClose {
+    position: absolute; top: .4rem; right: .4rem;
+    width: 34px; height: 34px; border-radius: 50%; border: none; cursor: pointer;
+    font-size: 1.05rem; line-height: 1; font-weight: 700; color: #8d6e63;
+    background: rgba(141,110,99,.15);
+  }
+  #bClose:active { transform: scale(.9) }
+  #createMask {
+    position: fixed; inset: 0; z-index: 95; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.5);
+  }
+  #createMask.open { display: flex }
+  #createBox {
+    background: linear-gradient(160deg, #fff8e1, #ffe0b2);
+    border: 4px solid #8d6e63; border-radius: 18px; padding: 1.1rem 1.4rem; text-align: center;
+    box-shadow: 0 10px 30px rgba(0,0,0,.3); max-width: 88vw; width: 320px;
+  }
+  #createBox h3 { color: #e65100; margin-bottom: .7rem; font-size: 1.1rem }
+  .cfg-row { display: flex; align-items: center; gap: .5rem; margin: .5rem 0 }
+  .cfg-row > span { font-size: .9rem; color: #6d4c41; font-weight: 700; width: 3.6em; flex: none; text-align: left }
+  #fcOpts, #spdOpts { display: flex; gap: .35rem; flex: 1; flex-wrap: wrap }
+  #fcOpts button, #spdOpts button {
+    flex: 1; min-width: 44px; border: 2px solid #ffe0b2; border-radius: 10px; padding: .4rem 0;
+    font-size: .9rem; font-weight: 700; cursor: pointer; background: #fffaf0; color: #8d6e63;
+  }
+  #fcOpts button.on, #spdOpts button.on {
+    background: linear-gradient(135deg, #ff9800, #ffb74d); color: #fff; border-color: #f57c00;
+  }
+  #createBox .btns { display: flex; gap: .5rem; justify-content: center; margin-top: .8rem }
+  #createBox .btns button {
+    border: none; cursor: pointer; padding: .55rem 1.2rem; font-size: .92rem; font-weight: 700;
+    border-radius: 12px; color: #fff;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+  }
+  #createBox .btns button.g { background: linear-gradient(135deg, #8d6e63, #a1887f) }
+  #panel h2 { color: #e65100; font-size: 1.4rem; margin-bottom: .5rem }
+  #panel .sc { font-size: 1rem; color: #6d4c41; margin: .25rem 0 }
+  #panel .btns { display: flex; gap: .6rem; justify-content: center; margin-top: 1rem; flex-wrap: wrap }
+  #panel button {
+    border: none; cursor: pointer; padding: .6rem 1.3rem; font-size: .95rem;
+    border-radius: 14px; font-weight: 700; color: #fff;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+    box-shadow: 0 3px 10px rgba(255,152,0,.4);
+  }
+  #panel button.g { background: linear-gradient(135deg, #8d6e63, #a1887f) }
+  #panel button:active { transform: scale(.95) }
+</style>
+</head>
+<body>
+  <header>
+    <button id="bBack">← 返回</button>
+    <h1>🐍 贪吃蛇</h1>
+    <button id="bPause">⏸ 暂停</button>
+    <span class="st" id="st">连接中</span>
+  </header>
+  <div id="modeBar">
+    <button id="mSolo" class="on">🎮 单人</button>
+    <button id="mPvp">🤝 联机对战</button>
+  </div>
+  <div id="stats">
+    <span>🍎 得分 <b id="score">0</b></span>
+    <span>🏆 最高 <b id="best">0</b></span>
+  </div>
+  <div class="hint" id="soloHint">🐻 电脑：方向键 / WASD · 空格加速 · P 暂停</div>
+  <div id="pvpPanel">
+    <div class="row">
+      <button id="bCreate">🎮 创建房间</button>
+      <input id="iJoin" placeholder="输入房间码" maxlength="6">
+      <button id="bJoin" class="g">加入</button>
+    </div>
+    <div id="roomInfo">房间码：<span class="code" id="roomCode"></span><span style="font-size:.8rem;color:#8d6e63">把房间码告诉好友加入 · 等待对方中…</span></div>
+    <div id="roomWait">
+      <div style="text-align:center">房间 <b id="rwCode" style="color:#ff9800;font-size:1.3rem;letter-spacing:.2em"></b></div>
+      <div id="rwState" style="text-align:center;color:#8d6e63;font-size:.9rem;margin:.3rem 0">等待对方加入…</div>
+      <div class="row">
+        <button id="bReady">✅ 准备</button>
+        <button id="bInvite" class="g">📨 发邀请到聊天室</button>
+        <button id="bLeaveRoom" class="g">🚪 退出</button>
+      </div>
+    </div>
+  </div>
+  <div id="pvpStats">
+    <span class="a">🐍 A <b id="sa">0</b></span>
+    <span id="roleTag" style="color:#8d6e63;font-size:.82rem">你：?</span>
+    <span class="b">🐍 B <b id="sb">0</b></span>
+  </div>
+  <div id="wrap">
+    <div id="board">
+      <canvas id="cv"></canvas>
+      <div class="pause-tip" id="pauseTip">已暂停 · 按 P 继续</div>
+      <button id="bStartIn">🎮 开始游戏</button>
+    </div>
+  </div>
+  <div id="ctrl">
+    <div id="dpad">
+      <button class="d up" data-dx="0" data-dy="-1">▲</button>
+      <div class="drow">
+        <button class="d" data-dx="-1" data-dy="0">◀</button>
+        <span class="dmid"></span>
+        <button class="d" data-dx="1" data-dy="0">▶</button>
+      </div>
+      <button class="d down" data-dx="0" data-dy="1">▼</button>
+    </div>
+    <div id="boostWrap">
+      <button id="bBoost" title="按住加速（每加速7格长度减1）">⚡</button>
+      <span class="bl">按住<br>加速</span>
+    </div>
+  </div>
+  <div class="tip" id="footTip">🎮 C++ 引擎服务端实时计算 · 手机用底部按键 / 电脑方向键+WASD</div>
+  <div id="createMask">
+    <div id="createBox">
+      <h3>🎮 创建房间</h3>
+      <div class="cfg-row"><span>食物个数</span>
+        <div id="fcOpts">
+          <button data-fc="1" class="on">1</button>
+          <button data-fc="2">2</button>
+          <button data-fc="3">3</button>
+          <button data-fc="5">5</button>
+        </div>
+      </div>
+      <div class="cfg-row"><span>移动速度</span>
+        <div id="spdOpts">
+          <button data-spd="200">🐢 慢</button>
+          <button data-spd="140" class="on">🚶 中</button>
+          <button data-spd="90">🐇 快</button>
+        </div>
+      </div>
+      <div class="btns">
+        <button id="bCreateCfm">✅ 创建</button>
+        <button id="bCreateCancel" class="g">取消</button>
+      </div>
+    </div>
+  </div>
+  <div id="mask">
+    <div id="panel">
+      <button id="bClose">✕</button>
+      <h2 id="rTitle">🎮 游戏结束</h2>
+      <div class="sc" id="rMsg">-</div>
+      <div class="btns">
+        <button id="bRestart">🔄 再来一局</button>
+        <button id="bLeave" class="g" style="display:none">🚪 离开房间</button>
+      </div>
+    </div>
+  </div>
+  <script>
+    const $ = id => document.getElementById(id);
+    const cv = $('cv'), ctx = cv.getContext('2d');
+    const GRID = 20;
+    const BEST_KEY = 'snake_best';
+    let ws = null;
+    // 模式
+    let mode = 'solo';           // solo | pvp
+    // 单人状态
+    let snake = [], food = { x: 10, y: 10 }, score = 0, best = 0;
+    let started = false, paused = false, over = false;
+    // 双人状态
+    let role = 0, roomCode = '', pvpA = [], pvpB = [], pvpFoods = [];
+    let autoJoinRoom = new URLSearchParams(location.search).get('room') || '';
+    let rwRole = 'a', rwRa = 0, rwRb = 0;
+    let sa = 0, sb = 0, pvpStarted = false, pvpEnded = false;
+
+    function fitBoard() {
+      const wrap = $('wrap');
+      const w = wrap.clientWidth - 10, h = wrap.clientHeight - 10;
+      const size = Math.max(80, Math.min(w, h, 560));
+      const b = $('board');
+      b.style.width = size + 'px'; b.style.height = size + 'px';
+    }
+    function resize() {
+      const r = cv.parentElement.getBoundingClientRect();
+      const dpr = window.devicePixelRatio || 1;
+      cv.width = r.width * dpr; cv.height = r.height * dpr;
+      cv.style.width = '100%'; cv.style.height = '100%';
+      ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    }
+    function roundRect(x, y, w, h, r) {
+      r = Math.min(r, w / 2, h / 2);
+      ctx.beginPath();
+      ctx.moveTo(x + r, y);
+      ctx.arcTo(x + w, y, x + w, y + h, r);
+      ctx.arcTo(x + w, y + h, x, y + h, r);
+      ctx.arcTo(x, y + h, x, y, r);
+      ctx.arcTo(x, y, x + w, y, r);
+      ctx.closePath();
+    }
+    function drawSnake(b, cell, pad, base, dirX, dirY) {
+      for (let i = b.length - 1; i >= 0; i--) {
+        const s = b[i];
+        const x = s.x * cell, y = s.y * cell;
+        ctx.save();
+        ctx.shadowColor = 'rgba(141,110,99,.3)'; ctx.shadowBlur = 3;
+        ctx.fillStyle = base;
+        ctx.globalAlpha = i === 0 ? 1 : Math.max(0.45, 1 - i * 0.04);
+        ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 1.2;
+        roundRect(x + pad * 0.6, y + pad * 0.6, cell - pad * 1.2, cell - pad * 1.2, cell * 0.3);
+        ctx.fill(); ctx.stroke();
+        ctx.globalAlpha = 1;
+        ctx.restore();
+        if (i === 0) {
+          ctx.fillStyle = '#fff';
+          const er = cell * 0.09;
+          ctx.beginPath(); ctx.arc(x + cell * 0.32, y + cell * 0.35, er, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + cell * 0.68, y + cell * 0.35, er, 0, 7); ctx.fill();
+          ctx.fillStyle = '#3e2723';
+          ctx.beginPath(); ctx.arc(x + cell * 0.32 + dirX * er * 0.4, y + cell * 0.35 + dirY * er * 0.4, er * 0.5, 0, 7); ctx.fill();
+          ctx.beginPath(); ctx.arc(x + cell * 0.68 + dirX * er * 0.4, y + cell * 0.35 + dirY * er * 0.4, er * 0.5, 0, 7); ctx.fill();
+        }
+      }
+    }
+    const FOOD_COLORS = ['#ff8a65','#66bb6a','#ab47bc','#42a5f5','#ffca28','#ec407a','#26a69a','#8d6e63'];
+    function drawFood(f, cell) {
+      const fx = f.x * cell, fy = f.y * cell, pad = cell * 0.12;
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,87,34,.4)'; ctx.shadowBlur = 8;
+      ctx.fillStyle = '#ff8a65'; ctx.strokeStyle = '#e65100'; ctx.lineWidth = 2;
+      roundRect(fx + pad, fy + pad, cell - pad * 2, cell - pad * 2, cell * 0.25);
+      ctx.fill(); ctx.stroke();
+      ctx.restore();
+    }
+    function drawFoods(foods, cell) {
+      foods.forEach((f, i) => {
+        const fx = f.x * cell, fy = f.y * cell, pad = cell * 0.12;
+        const col = FOOD_COLORS[i % FOOD_COLORS.length];
+        ctx.save();
+        ctx.shadowColor = col; ctx.shadowBlur = 8;
+        ctx.fillStyle = col; ctx.strokeStyle = '#5d4037'; ctx.lineWidth = 1.5;
+        roundRect(fx + pad, fy + pad, cell - pad * 2, cell - pad * 2, cell * 0.25);
+        ctx.fill(); ctx.stroke();
+        ctx.restore();
+      });
+    }
+    function draw() {
+      fitBoard();
+      resize();
+      const W = cv.width / (window.devicePixelRatio || 1);
+      const cell = W / GRID, pad = cell * 0.12;
+      ctx.clearRect(0, 0, W, W);
+      if (mode === 'pvp') {
+        drawFoods(pvpFoods, cell);
+        drawSnake(pvpA, cell, pad, '#f9a825', 1, 0);
+        drawSnake(pvpB, cell, pad, '#42a5f5', -1, 0);
+      } else {
+        drawFood(food, cell);
+        drawSnake(snake, cell, pad, '#fdd835', 1, 0);
+      }
+    }
+
+    // ===== 单人 =====
+    function parseSnake(str) {
+      return str.split(';').map(p => { const q = p.split(','); return { x: +q[0], y: +q[1] }; });
+    }
+    function applySolo(snakeStr, foodStr, scoreStr) {
+      snake = parseSnake(snakeStr);
+      const fp = foodStr.split(','); food = { x: +fp[0], y: +fp[1] };
+      score = +scoreStr;
+      $('score').textContent = score;
+      if (score > best) { best = score; localStorage.setItem(BEST_KEY, String(best)); }
+      $('best').textContent = best;
+      started = true; over = false;
+      hideStartBtn();
+      $('mask').classList.remove('open');
+      draw();
+    }
+    function soloOver(sc) {
+      over = true; started = false;
+      if (sc > best) { best = sc; localStorage.setItem(BEST_KEY, String(best)); }
+      $('rTitle').textContent = '🎮 游戏结束';
+      $('rMsg').textContent = '本局得分：' + sc + ' ｜ 历史最高：' + best;
+      $('bRestart').style.display = '';
+      $('bLeave').style.display = 'none';
+      $('mask').classList.add('open');
+    }
+    function applyPvp(snakeA, snakeB, foodStr, scoreA, scoreB, rl) {
+      pvpA = parseSnake(snakeA); pvpB = parseSnake(snakeB);
+      pvpFoods = parseSnake(foodStr);
+      sa = +scoreA; sb = +scoreB;
+      $('sa').textContent = sa; $('sb').textContent = sb;
+      role = +rl;
+      $('roleTag').textContent = '你：' + (role === 1 ? '黄 A' : '蓝 B');
+      pvpStarted = true; pvpEnded = false;
+      $('pvpPanel').style.display = 'none';
+      $('roomInfo').style.display = 'none';
+      $('roomWait').style.display = 'none';
+      $('pvpStats').style.display = 'flex';
+      $('mask').classList.remove('open');
+      draw();
+    }
+    function pvpOver(result) {
+      pvpStarted = false; pvpEnded = true;
+      let title, msg;
+      const myWin = (result === 1 && role === 1) || (result === 2 && role === 2);
+      if (result === 3) { title = '🤝 平局！'; msg = '两头同长，谁也没赢'; }
+      else if (myWin) { title = '🏆 你赢啦！'; msg = '你的蛇更胜一筹'; }
+      else { title = '💀 你输了'; msg = '对方把你撞死了'; }
+      $('rTitle').textContent = title;
+      $('rMsg').textContent = msg + ' ｜ 得分 A:' + sa + ' - B:' + sb;
+      $('bRestart').style.display = '';
+      $('bRestart').textContent = '🔄 准备再来一局';
+      $('bLeave').style.display = '';
+      $('mask').classList.add('open');
+    }
+    function toast(t) { $('st').textContent = t; }
+
+    // ===== WS =====
+    function connect() {
+      const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+      ws = new WebSocket(proto + location.host + '/ws');
+          ws.onopen = () => {
+      $('st').textContent = '已连接';
+      if (autoJoinRoom) { roomCode = autoJoinRoom; send('SNK|join|' + autoJoinRoom); }
+      else if (mode === 'solo') showStartBtn();
+    };
+      ws.onmessage = e => {
+        let d = e.data; d = d.replace(/\n$/, '');
+        if (d.indexOf('SNK|init|') === 0) { const p = d.slice(9).split('|'); applySolo(p[0], p[1], p[2]); }
+        else if (d.indexOf('SNK|state|') === 0) { const p = d.slice(10).split('|'); if (p.length >= 3) applySolo(p[0], p[1], p[2]); }
+        else if (d.indexOf('SNK|over|') === 0) { soloOver(+d.slice(9)); }
+        else if (d.indexOf('SNK|created|') === 0) {
+          roomCode = d.slice(12); $('roomCode').textContent = roomCode;
+          roomWaitShow('a', 0, 0);
+          toast('房间已创建，等待好友加入…');
+        }
+        else if (d === 'SNK|noroom') { toast('房间不存在'); }
+        else if (d === 'SNK|full') { toast('房间已满'); }
+        else if (d.indexOf('SNK|joined|') === 0) {
+          const p = d.slice(11).split('|');
+          roomCode = p[0];
+          roomWaitShow(p[1], +p[2], +p[3]);
+          toast('已进入房间，等双方准备开始');
+        }
+        else if (d.indexOf('SNK|roomstate|') === 0) {
+          const p = d.slice(14).split('|');
+          rwRa = +p[0]; rwRb = +p[1]; updateReady();
+        }
+        else if (d.indexOf('SNK|pinit|') === 0) {
+          const p = d.slice(10).split('|');
+          applyPvp(p[0], p[1], p[2], p[3], p[4], p[5]);
+          toast('对局开始！');
+        }
+        else if (d.indexOf('SNK|pstate|') === 0) {
+          const p = d.slice(11).split('|');
+          if (p.length >= 5) applyPvp(p[0], p[1], p[2], p[3], p[4], role);
+        }
+        else if (d.indexOf('SNK|pover|') === 0) { pvpOver(+d.slice(10)); }
+        else if (d === 'SNK|peer_left') {
+          if (pvpStarted || pvpEnded) {
+            pvpStarted = false; pvpEnded = false;
+            $('mask').classList.add('open');
+            $('rTitle').textContent = '👋 对方离开了';
+            $('rMsg').textContent = '房间已解散，点击离开房间返回';
+            $('bRestart').style.display = 'none';
+            $('bLeave').style.display = '';
+          } else { showPvpPanel(); }
+        }
+        else if (d === 'SNK|left') { showPvpPanel(); }
+        else if (d.indexOf('SNK|err|') === 0) { toast(d.slice(9)); }
+      };
+      ws.onclose = () => { $('st').textContent = '已断开'; setTimeout(connect, 2000); };
+      ws.onerror = () => { };
+    }
+    function send(s) { if (ws && ws.readyState === 1) ws.send(s); }
+
+    function setDir(dx, dy) {
+      if (mode === 'pvp') {
+        if (!pvpStarted || pvpEnded) return;
+        send('SNK|pdir|' + dx + '|' + dy);
+      } else {
+        if (!started || over) return;
+        if (paused) return;
+        send('SNK|dir|' + dx + '|' + dy);
+      }
+    }
+    let boostOn = false;
+    function applyBoost(on) {
+      if (boostOn === on) return;      // 状态没变不发，避免重复/误关
+      boostOn = on;
+      $('bBoost').classList.toggle('on', on);
+      if (mode === 'pvp') {
+        if (!pvpStarted || pvpEnded) return;
+        send('SNK|pboost|' + (on ? 1 : 0));
+      } else {
+        if (!started || over) return;
+        if (paused) return;
+        send('SNK|boost|' + (on ? 1 : 0));
+      }
+    }
+    // 加速按钮：按住加速、松开停止
+    const bBoost = $('bBoost');
+    const bS = e => { e.preventDefault(); applyBoost(true); };
+    const bE = e => { e.preventDefault(); applyBoost(false); };
+    bBoost.addEventListener('touchstart', bS, { passive: false });
+    bBoost.addEventListener('touchend', bE, { passive: false });
+    bBoost.addEventListener('touchcancel', bE, { passive: false });
+    bBoost.addEventListener('pointerdown', bS);
+    bBoost.addEventListener('pointerup', bE);
+    bBoost.addEventListener('pointercancel', bE);
+    bBoost.addEventListener('pointerleave', bE);
+    // 底部方向键：点按转向
+    document.querySelectorAll('#dpad .d').forEach(btn => {
+      const fire = () => setDir(+btn.dataset.dx, +btn.dataset.dy);
+      btn.addEventListener('touchstart', e => { e.preventDefault(); fire(); }, { passive: false });
+      btn.addEventListener('pointerdown', e => { e.preventDefault(); fire(); });
+    });
+
+    document.addEventListener('keydown', e => {
+      const k = e.key.toLowerCase();
+      if (['arrowup','w','arrowdown','s','arrowleft','a','arrowright','d'].includes(k)) e.preventDefault();
+      if (k === 'arrowup' || k === 'w') setDir(0, -1);
+      else if (k === 'arrowdown' || k === 's') setDir(0, 1);
+      else if (k === 'arrowleft' || k === 'a') setDir(-1, 0);
+      else if (k === 'arrowright' || k === 'd') setDir(1, 0);
+      else if (k === ' ') { applyBoost(true); e.preventDefault(); }
+      else if (k === 'p' && mode === 'solo') togglePause();
+    });
+    document.addEventListener('keyup', e => {
+      if (e.key === ' ') { applyBoost(false); e.preventDefault(); }
+    });
+    let tsx = null, tsy = null;
+    const board = $('board');
+    board.addEventListener('touchstart', e => { tsx = e.touches[0].clientX; tsy = e.touches[0].clientY; }, { passive: false });
+    board.addEventListener('touchmove', e => {
+      if (tsx === null) return;
+      const dx = e.touches[0].clientX - tsx, dy = e.touches[0].clientY - tsy;
+      if (Math.abs(dx) < 18 && Math.abs(dy) < 18) return;
+      if (Math.abs(dx) > Math.abs(dy)) setDir(dx > 0 ? 1 : -1, 0);
+      else setDir(0, dy > 0 ? 1 : -1);
+      tsx = null; tsy = null;
+      e.preventDefault();
+    }, { passive: false });
+
+    function togglePause() {
+      if (!started || over) return;
+      paused = !paused;
+      send('SNK|pause|' + (paused ? 1 : 0));
+      $('pauseTip').style.display = paused ? 'block' : 'none';
+      $('bPause').textContent = paused ? '▶ 继续' : '⏸ 暂停';
+    }
+
+    // ===== 模式切换 =====
+    function showStartBtn() { if (mode === 'solo') $('bStartIn').style.display = 'block'; }
+    function hideStartBtn() { $('bStartIn').style.display = 'none'; }
+    $('bStartIn').onclick = () => { send('SNK|new'); hideStartBtn(); };
+    $('bClose').onclick = () => {
+      $('mask').classList.remove('open');
+      if (mode === 'solo') { showStartBtn(); }
+      else if (mode === 'pvp') { if (roomCode) roomWaitShow(rwRole, 0, 0); else showPvpPanel(); }
+    };
+    function showPvpPanel() {
+      pvpStarted = false; pvpEnded = false;
+      $('roomInfo').style.display = 'none';
+      $('roomWait').style.display = 'none';
+      $('pvpStats').style.display = 'none';
+      $('mask').classList.remove('open');
+    }
+    function roomWaitShow(myRole, ra, rb) {
+      rwRole = myRole; rwRa = ra; rwRb = rb;
+      $('rwCode').textContent = roomCode;
+      $('roomInfo').style.display = 'none';
+      $('roomWait').style.display = 'flex';
+      updateReady();
+    }
+    function updateReady() {
+      const mine = rwRole === 'a' ? rwRa : rwRb;
+      const other = rwRole === 'a' ? rwRb : rwRa;
+      $('rwState').textContent = (mine ? '✅ 我：已准备' : '⏳ 我：未准备') + ' ｜ ' + (other ? '✅ 对方：已准备' : '⏳ 对方：未准备');
+      $('bReady').classList.toggle('on', mine === 1);
+      $('bReady').textContent = mine ? '✅ 已准备' : '✅ 准备';
+    }
+    $('bReady').onclick = () => { send('SNK|ready'); };
+    $('bInvite').onclick = () => {
+      if (!roomCode) return;
+      const link = location.origin + '/snake.html?room=' + roomCode;
+      send('【游戏邀请】🐍 贪吃蛇房间 ' + roomCode + '，点链接进入对局：' + link);
+      toast('📨 邀请已发送到聊天室！');
+    };
+    $('bLeaveRoom').onclick = () => { send('SNK|leave'); roomCode = ''; showPvpPanel(); };
+    function setMode(m) {
+      mode = m;
+      $('mSolo').classList.toggle('on', m === 'solo');
+      $('mPvp').classList.toggle('on', m === 'pvp');
+      $('stats').style.display = m === 'solo' ? '' : 'none';
+      $('soloHint').style.display = m === 'solo' ? '' : 'none';
+      $('pvpPanel').style.display = m === 'pvp' ? 'flex' : 'none';
+      $('pvpStats').style.display = 'none';
+      $('bPause').style.display = m === 'solo' ? '' : 'none';
+      $('pauseTip').style.display = 'none';
+      $('mask').classList.remove('open');
+      if (m === 'solo') {
+        hideStartBtn();
+        if (roomCode) { send('SNK|leave'); roomCode = ''; showPvpPanel(); }
+        if (ws && ws.readyState === 1 && !started) showStartBtn();
+      } else {
+        hideStartBtn();
+        if (ws && ws.readyState === 1 && roomCode) ws.send('SNK|leave');
+        roomCode = ''; showPvpPanel();
+      }
+      ctx.clearRect(0, 0, cv.width, cv.height);
+    }
+    $('mSolo').onclick = () => setMode('solo');
+    $('mPvp').onclick = () => setMode('pvp');
+
+    let selFc = 1, selSpd = 140;
+    $('bCreate').onclick = () => { $('createMask').classList.add('open'); };
+    document.querySelectorAll('#fcOpts button').forEach(b => {
+      b.onclick = () => { selFc = +b.dataset.fc; document.querySelectorAll('#fcOpts button').forEach(x => x.classList.toggle('on', x === b)); };
+    });
+    document.querySelectorAll('#spdOpts button').forEach(b => {
+      b.onclick = () => { selSpd = +b.dataset.spd; document.querySelectorAll('#spdOpts button').forEach(x => x.classList.toggle('on', x === b)); };
+    });
+    $('bCreateCfm').onclick = () => {
+      roomCode = ''; $('createMask').classList.remove('open');
+      send('SNK|create|' + selFc + '|' + selSpd);
+    };
+    $('bCreateCancel').onclick = () => { $('createMask').classList.remove('open'); };
+    $('bJoin').onclick = () => {
+      const c = $('iJoin').value.trim().toUpperCase();
+      if (!c) { toast('请输入房间码'); return; }
+      roomCode = c; send('SNK|join|' + c);
+    };
+    $('bLeave').onclick = () => {
+      send('SNK|leave'); roomCode = '';
+      $('mask').classList.remove('open');
+      setMode('pvp');
+    };
+    $('bRestart').onclick = () => {
+      if (mode === 'solo') {
+        send('SNK|new'); $('mask').classList.remove('open');
+        paused = false; $('bPause').textContent = '⏸ 暂停'; $('pauseTip').style.display = 'none';
+      } else if (mode === 'pvp') {
+        $('mask').classList.remove('open');
+        if (roomCode) roomWaitShow(rwRole, 0, 0);
+        send('SNK|ready');
+      }
+    };
+    $('bPause').onclick = togglePause;
+    $('bBack').onclick = () => { if (roomCode) { send('SNK|leave'); roomCode = ''; } location.href = 'chat.html'; };
+    window.addEventListener('resize', () => { fitBoard(); if (snake.length || pvpA.length) draw(); });
+
+    best = parseInt(localStorage.getItem(BEST_KEY) || '0');
+    $('best').textContent = best;
+    fitBoard();
+    if (autoJoinRoom) {
+      mode = 'pvp';
+      $('mSolo').classList.remove('on'); $('mPvp').classList.add('on');
+      $('stats').style.display = 'none'; $('soloHint').style.display = 'none';
+      $('pvpPanel').style.display = 'flex'; $('pvpStats').style.display = 'none';
+      $('bPause').style.display = 'none';
+    }
+    connect();
+  </script>
+</body>
+</html>

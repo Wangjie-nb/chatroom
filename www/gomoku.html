@@ -1,0 +1,534 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>⚫ 五子棋</title>
+<style>
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{
+    font-family:"Comic Sans MS","PingFang SC","Microsoft YaHei",system-ui,sans-serif;
+    background:linear-gradient(180deg,#faf3e2,#efe0bd,#dcc68f);
+    color:#4e342e;min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:10px;
+  }
+  header{
+    width:100%;max-width:560px;display:flex;align-items:center;gap:10px;
+    background:linear-gradient(135deg,#8d6e63,#a1887f);color:#fff;
+    padding:10px 14px;border-radius:14px;box-shadow:0 3px 12px rgba(141,110,99,.4);
+  }
+  header h1{flex:1;font-size:1.15rem;text-shadow:1px 1px 2px rgba(0,0,0,.2)}
+  #bBack,#bRestart{border:none;background:rgba(255,255,255,.18);color:#fff;padding:7px 13px;border-radius:10px;cursor:pointer;font-size:.85rem;font-weight:600}
+  #bBack:hover,#bRestart:hover{background:rgba(255,255,255,.3)}
+  #status{width:100%;max-width:560px;margin:8px 0 0;font-size:.85rem;color:#6d4c41;text-align:center;background:rgba(255,248,225,.8);padding:7px;border-radius:10px;border:2px dashed #d7ccc8}
+  #wrap{position:relative;margin:12px 0}
+  canvas{display:block;border-radius:14px;box-shadow:0 6px 22px rgba(0,0,0,.25);background:#f7e3b4;cursor:pointer;max-width:100%;height:auto;touch-action:manipulation}
+  .btns{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:6px 0}
+  .btns button{
+    padding:9px 15px;border:none;border-radius:12px;font-size:.88rem;font-weight:700;cursor:pointer;
+    background:linear-gradient(135deg,#8d6e63,#a1887f);color:#fff;box-shadow:0 2px 6px rgba(141,110,99,.3);
+  }
+  .btns button:hover{transform:translateY(-1px);box-shadow:0 3px 10px rgba(141,110,99,.45)}
+  .btns button.alt{background:linear-gradient(135deg,#ff9800,#ffb74d);box-shadow:0 2px 6px rgba(255,152,0,.3)}
+  .tip{font-size:.75rem;color:#8d6e63;margin-top:6px;text-align:center}
+  /* 弹窗 */
+  .modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;align-items:center;justify-content:center}
+  .modal.show{display:flex}
+  .mcard{
+    position:relative;background:linear-gradient(160deg,#3a2a1a,#2a1f14);border:2px solid #c98d3d;border-radius:18px;
+    padding:22px 26px;text-align:center;min-width:250px;max-width:88%;box-shadow:0 8px 30px rgba(0,0,0,.5);
+  }
+  .mcard .x{position:absolute;top:8px;right:12px;font-size:20px;color:rgba(255,210,127,.75);cursor:pointer;line-height:1;padding:2px 6px}
+  .mcard h3{color:#ffd27f;font-size:16px;margin-bottom:6px}
+  .mcard .sub{color:rgba(255,233,200,.7);font-size:12px;margin-bottom:12px}
+  .mrow{display:flex;flex-direction:column;gap:8px;margin-bottom:16px}
+  .mrow .row{background:rgba(255,255,255,.06);border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;display:flex;justify-content:space-between;align-items:center}
+  .mrow .row .st{color:#9bd18a}
+  .mrow .row .st.on{color:#7cb342}
+  .mbtn{width:100%;padding:11px;border:none;border-radius:12px;background:linear-gradient(135deg,#7cb342,#558b2f);color:#fff;font-size:15px;font-weight:700;cursor:pointer;margin-top:0}
+  .mbtn.inv{margin-top:10px;background:transparent;border:2px solid #c98d3d;color:#ffd27f;font-size:13px;padding:10px}
+  #roomModal .code{font-size:44px;font-weight:700;color:#fff;letter-spacing:8px;margin:10px 0;text-shadow:0 2px 6px rgba(201,141,61,.5)}
+  .mbtn.sm{width:auto;padding:8px 14px;font-size:.85rem;margin:4px}
+  #pModal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:100;align-items:center;justify-content:center}
+  #pModal.show{display:flex}
+  #pCard{background:#fff8e1;border:2px solid #ffb74d;border-radius:16px;padding:18px 22px;min-width:260px;max-width:86%;box-shadow:0 6px 24px rgba(0,0,0,.35)}
+  #pCard h3{color:#e65100;margin-bottom:10px;font-size:1rem}
+  #pCard .pbtns{display:flex;gap:10px;justify-content:center;margin-top:6px}
+  #pCard .pbtns button{padding:9px 22px;border:none;border-radius:10px;font-size:.9rem;font-weight:700;cursor:pointer}
+  #pbYes{background:linear-gradient(135deg,#7cb342,#558b2f);color:#fff}
+  #pbNo{background:#eee;color:#555}
+</style>
+</head>
+<body>
+  <header>
+    <button id="bBack">← 返回</button>
+    <h1>⚫ 五子棋</h1>
+    <button id="bRestart">🔄 重开</button>
+  </header>
+  <div id="status">连接中...</div>
+  <div id="wrap"><canvas id="cv"></canvas></div>
+  <div class="btns">
+    <button class="alt" id="bUndo">↩️ 悔棋</button>
+  </div>
+  <div class="btns">
+    <button id="bCreate">🎮 创建房间</button>
+    <button id="bJoin">🔑 加入房间</button>
+    <button id="bRoomCode">📋 房间码</button>
+    <button id="bReadyPanel">📋 准备</button>
+    <button class="alt" id="bLeave">🚪 离开</button>
+  </div>
+  <div class="tip">黑方先手 · 点击交叉点落子 · 五子连珠获胜 · 联机悔棋需对方同意</div>
+
+  <!-- 准备面板 -->
+  <div id="readyModal" class="modal">
+    <div class="mcard">
+      <div class="x" id="rdClose">✕</div>
+      <h3>🎮 房间 <span id="rdCode" style="letter-spacing:3px;">----</span></h3>
+      <div class="sub">双方都点击「我准备好了」后自动开始</div>
+      <div class="mrow">
+        <div class="row" style="color:#4a4a4a">⚫ 黑方 <span class="st" id="rdBlack">未准备</span></div>
+        <div class="row" style="color:#f5f5f5">⚪ 白方 <span class="st" id="rdWhite">未准备</span></div>
+      </div>
+      <button class="mbtn" id="rdReady">✅ 我准备好了</button>
+      <button class="mbtn inv" id="rdInvite">📨 发邀请到聊天室</button>
+    </div>
+  </div>
+
+  <!-- 加入弹窗 -->
+  <div id="roomModal" class="modal">
+    <div class="mcard">
+      <div class="x" id="rmClose">✕</div>
+      <h3>加入房间</h3>
+      <input id="rmCode" style="width:100%;padding:10px;font-size:1.2rem;text-align:center;letter-spacing:4px;border:2px solid #c98d3d;border-radius:10px;background:#fff8e1;color:#4e342e;outline:none" placeholder="4位房间码" maxlength="4">
+      <div style="margin-top:12px"><button class="mbtn sm" id="rmGo" style="width:auto;padding:9px 24px">加入</button></div>
+    </div>
+  </div>
+
+  <!-- 房间码弹窗 -->
+  <div id="codeModal" class="modal">
+    <div class="mcard">
+      <div class="x" id="cmClose">✕</div>
+      <h3>🎮 你的房间码</h3>
+      <div class="code" id="codeBig">0000</div>
+      <button class="mbtn sm" id="cmCopy">📋 复制</button>
+    </div>
+  </div>
+
+  <!-- 悔棋确认 -->
+  <div id="pModal">
+    <div id="pCard">
+      <h3 id="pTitle">对方请求悔棋</h3>
+      <div class="pbtns">
+        <button id="pbYes">✅ 同意</button>
+        <button id="pbNo">❌ 拒绝</button>
+      </div>
+    </div>
+  </div>
+
+<script>
+(function(){
+  var cv=document.getElementById('cv'), ctx=cv.getContext('2d');
+  var CELL=34, M=30, N=15;
+  cv.width=(N-1)*CELL+2*M; cv.height=cv.width;
+  var SIZE=cv.width;
+  var $=function(id){return document.getElementById(id);};
+  var statusEl=$('status');
+
+  // ---- 状态 ----
+  var board=[], turn=1;            // 1黑 2白
+  var gameMode='solo', mySide=null, myRoomCode=null;   // solo / wait / online
+  var gameOver=false, winner=0, lastXY=null, selected=null, hoverPos=null;
+  var ws=null, serverMode=false, wsRetry=0;
+  var bReady=0,wReady=0;
+  var autoJoinCode=''; try{autoJoinCode=new URLSearchParams(location.search).get('room')||'';}catch(e){}
+  var xqToken=localStorage.getItem('g5_token');
+  if(!xqToken){xqToken='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,10);localStorage.setItem('g5_token',xqToken);}
+
+  function setStatus(t){statusEl.textContent=t;}
+  function newBoard(){board=[];for(var y=0;y<N;y++){board.push([]);for(var x=0;x<N;x++)board[y].push(0);}}
+
+  // ---- 判胜（本地/单机） ----
+  function g5Check(x,y,side){
+    var dx=[1,0,1,1],dy=[0,1,1,-1];
+    for(var d=0;d<4;d++){
+      var cnt=1;
+      for(var s=1;s<5;s++){var nx=x+dx[d]*s,ny=y+dy[d]*s;if(nx<0||nx>=N||ny<0||ny>=N||board[ny][nx]!==side)break;cnt++;}
+      for(var s=1;s<5;s++){var nx=x-dx[d]*s,ny=y-dy[d]*s;if(nx<0||nx>=N||ny<0||ny>=N||board[ny][nx]!==side)break;cnt++;}
+      if(cnt>=5)return true;
+    }
+    return false;
+  }
+
+  // ---- 绘制 ----
+  function draw(){
+    ctx.clearRect(0,0,SIZE,SIZE);
+    // 背景
+    var bg=ctx.createLinearGradient(0,0,SIZE,SIZE);
+    bg.addColorStop(0,'#f7e3b4');bg.addColorStop(1,'#ecd19a');
+    ctx.fillStyle=bg;ctx.fillRect(0,0,SIZE,SIZE);
+    // 网格
+    ctx.strokeStyle='#8d6e63';ctx.lineWidth=1;
+    for(var i=0;i<N;i++){
+      var p=M+i*CELL;
+      ctx.beginPath();ctx.moveTo(M,p);ctx.lineTo(M+(N-1)*CELL,p);ctx.stroke();
+      ctx.beginPath();ctx.moveTo(p,M);ctx.lineTo(p,M+(N-1)*CELL);ctx.stroke();
+    }
+    // 星位
+    ctx.fillStyle='#8d6e63';
+    [[3,3],[11,3],[7,7],[3,11],[11,11]].forEach(function(s){
+      ctx.beginPath();ctx.arc(M+s[0]*CELL,M+s[1]*CELL,4,0,Math.PI*2);ctx.fill();
+    });
+    // 棋子
+    for(var y=0;y<N;y++)for(var x=0;x<N;x++){
+      if(!board[y][x])continue;
+      var px=M+x*CELL,py=M+y*CELL;
+      var side=board[y][x];
+      ctx.beginPath();ctx.arc(px,py,CELL*0.42,0,Math.PI*2);
+      if(side===1){
+        var bg2=ctx.createRadialGradient(px-4,py-4,2,px,py,CELL*0.42);
+        bg2.addColorStop(0,'#555');bg2.addColorStop(1,'#000');
+        ctx.fillStyle=bg2;
+      }else{
+        var bg3=ctx.createRadialGradient(px-4,py-4,2,px,py,CELL*0.42);
+        bg3.addColorStop(0,'#fff');bg3.addColorStop(1,'#ddd');
+        ctx.fillStyle=bg3;
+      }
+      ctx.fill();
+      ctx.lineWidth=1;ctx.strokeStyle='rgba(0,0,0,.25)';ctx.stroke();
+    }
+    // 最后一步标记
+    if(lastXY){
+      var px=M+lastXY[0]*CELL,py=M+lastXY[1]*CELL;
+      ctx.beginPath();ctx.arc(px,py,4,0,Math.PI*2);
+      ctx.fillStyle=board[lastXY[1]][lastXY[0]]===1?'#7cb342':'#e65100';
+      ctx.fill();
+    }
+    // 落子预览：显示将落在哪个交叉点
+    if(hoverPos&&!gameOver){
+      var canHover=true;
+      if(gameMode==='wait')canHover=false;
+      if(gameMode==='online'){
+        if(!ws||ws.readyState!==WebSocket.OPEN)canHover=false;
+        if(turn!==(mySide==='b'?1:2))canHover=false;
+      }
+      if(canHover&&hoverPos[0]>=0&&hoverPos[0]<N&&hoverPos[1]>=0&&hoverPos[1]<N&&board[hoverPos[1]][hoverPos[0]]===0){
+        var hx=M+hoverPos[0]*CELL,hy=M+hoverPos[1]*CELL;
+        ctx.beginPath();ctx.arc(hx,hy,CELL*0.38,0,Math.PI*2);
+        ctx.fillStyle=turn===1?'rgba(0,0,0,.22)':'rgba(255,255,255,.45)';
+        ctx.fill();
+      }
+    }
+    // 获胜线
+    if(gameOver&&winner){
+      var line=getWinLine();
+      if(line){
+        ctx.strokeStyle=winner===1?'#c62828':'#1565c0';
+        ctx.lineWidth=4;
+        ctx.beginPath();
+        ctx.moveTo(M+line[0][0]*CELL,M+line[0][1]*CELL);
+        ctx.lineTo(M+line[1][0]*CELL,M+line[1][1]*CELL);
+        ctx.stroke();
+      }
+    }
+  }
+  // 找获胜五连线
+  function getWinLine(){
+    if(!lastXY)return null;
+    var dx=[1,0,1,1],dy=[0,1,1,-1];
+    var x=lastXY[0],y=lastXY[1],side=board[y][x];
+    for(var d=0;d<4;d++){
+      var cells=[[x,y]];
+      for(var s=1;s<5;s++){var nx=x+dx[d]*s,ny=y+dy[d]*s;if(nx<0||nx>=N||ny<0||ny>=N||board[ny][nx]!==side)break;cells.push([nx,ny]);}
+      for(var s=1;s<5;s++){var nx=x-dx[d]*s,ny=y-dy[d]*s;if(nx<0||nx>=N||ny<0||ny>=N||board[ny][nx]!==side)break;cells.unshift([nx,ny]);}
+      if(cells.length>=5)return [cells[0],cells[cells.length-1]];
+    }
+    return null;
+  }
+  function turnName(){return turn===1?'黑':'白';}
+
+  // ---- 落子 ----
+  function canvasPos(e){
+    var r=cv.getBoundingClientRect();
+    var sx=(e.clientX-r.left)*(cv.width/r.width);
+    var sy=(e.clientY-r.top)*(cv.height/r.height);
+    var gx=Math.round((sx-M)/CELL), gy=Math.round((sy-M)/CELL);
+    if(gx<0||gx>=N||gy<0||gy>=N)return null;
+    return [gx,gy];
+  }
+  function updateHover(e){
+    var pos=canvasPos(e);
+    if(pos&&board[pos[1]][pos[0]]===0)hoverPos=pos;else hoverPos=null;
+    draw();
+  }
+  cv.addEventListener('mousemove',updateHover);
+  cv.addEventListener('touchmove',function(e){if(e.touches.length)updateHover(e.touches[0]);},{passive:true});
+  cv.addEventListener('mouseleave',function(){hoverPos=null;draw();});
+  cv.addEventListener('click',function(e){
+    if(gameOver)return;
+    if(gameMode==='wait'){setStatus('等待开始，不能落子');return;}
+    var pos=canvasPos(e);if(!pos)return;
+    var x=pos[0],y=pos[1];
+    if(board[y][x]!==0){setStatus('该位置已有棋子');return;}
+    if(gameMode==='online'){
+      if(!ws||ws.readyState!==WebSocket.OPEN){setStatus('未连接');return;}
+      if(turn!==(mySide==='b'?1:2)){setStatus('还没轮到你');return;}
+      ws.send('G5|move|'+x+','+y);
+      return;
+    }
+    // 单机
+    placeLocal(x,y,turn);
+  });
+  function placeLocal(x,y,side){
+    board[y][x]=side;lastXY=[x,y];turn=(side===1)?2:1;
+    if(g5Check(x,y,side)){
+      gameOver=true;winner=side;turn=(side===1)?2:1;
+      setStatus('🏆 '+(side===1?'黑':'白')+'方获胜！');
+    }
+    draw();
+  }
+  function doLocalNew(){newBoard();turn=1;gameOver=false;winner=0;lastXY=null;draw();}
+
+  // ---- 单机悔棋（记录本地历史） ----
+  var localHist=[];
+  function doLocalUndo(){
+    if(localHist.length===0){setStatus('没有可悔的棋');return;}
+    var last=localHist.pop();
+    board[last[1]][last[0]]=0;turn=last[2];gameOver=false;winner=0;
+    lastXY=localHist.length?localHist[localHist.length-1].slice(0,2):null;
+    draw();
+  }
+  function pushLocalHist(x,y){localHist.push([x,y,turn]);}
+
+  // 单机落子改为记录历史
+  var _origPlace=placeLocal;
+  placeLocal=function(x,y,side){pushLocalHist(x,y);_origPlace(x,y,side);};
+
+  // ---- 准备功能 ----
+  function updReadyUI(){
+    var be=$('rdBlack'),we=$('rdWhite');
+    be.textContent=bReady?'✅ 已准备':'未准备';be.style.color=bReady?'#7cb342':'#9bd18a';
+    we.textContent=wReady?'✅ 已准备':'未准备';we.style.color=wReady?'#7cb342':'#9bd18a';
+    if(bReady&&wReady&&gameMode==='wait')hideReady();   // 只在开局等待阶段自动关面板
+  }
+  function showReady(code){
+    $('rdCode').textContent=code;
+    $('readyModal').classList.add('show');
+    var btn=$('rdReady');btn.disabled=false;btn.textContent='✅ 我准备好了';btn.style.opacity='1';
+    updReadyUI();
+  }
+  function hideReady(){$('readyModal').classList.remove('show');}
+  function setMyReady(){
+    var btn=$('rdReady');
+    if(btn.disabled)return;
+    btn.disabled=true;btn.textContent='✅ 已准备';btn.style.opacity='0.6';
+    if(ws&&ws.readyState===WebSocket.OPEN)ws.send('G5|ready');
+  }
+  $('rdReady').addEventListener('click',setMyReady);
+  $('rdClose').addEventListener('click',function(){
+    hideReady();setStatus('准备面板已收起 · 房间 '+myRoomCode+' · 点「📋 准备」重新打开');
+  });
+  $('rdInvite').addEventListener('click',function(){
+    if(!ws||ws.readyState!==WebSocket.OPEN){setStatus('未连接');return;}
+    if(!myRoomCode){setStatus('请先创建房间');return;}
+    var link=location.origin+'/gomoku.html?room='+myRoomCode;
+    ws.send('【游戏邀请】🎱 五子棋房间 '+myRoomCode+'，点链接进入对局：'+link);
+    setStatus('📨 邀请已发送到聊天室！');
+  });
+  $('bReadyPanel').addEventListener('click',function(){
+    if(!myRoomCode){setStatus('当前不在房间中');return;}
+    if(gameMode==='online'&&!gameOver){setStatus('对局进行中，等这盘结束再准备');return;}
+    showReady(myRoomCode);
+  });
+
+  // ---- 连接 ----
+  function connect(){
+    if(!location.host)return;
+    var proto=location.protocol==='https:'?'wss://':'ws://';
+    try{
+      ws=new WebSocket(proto+location.host+'/ws');
+      ws.onopen=function(){
+        serverMode=true;wsRetry=0;ws.send('RTOKEN|'+xqToken);
+        if(autoJoinCode){setStatus('🎮 正在加入房间 '+autoJoinCode+'...');ws.send('G5|join|'+autoJoinCode);}
+        else setStatus('已连接服务器 · 单机模式（黑方先手）');
+      };
+      ws.onmessage=function(e){handleMsg(e.data);};
+      ws.onclose=function(){
+        serverMode=false;
+        if(gameMode!=='solo')setStatus('⚠️ 连接断开，正在重连...');
+        wsRetry++;setTimeout(connect,3000);
+      };
+      ws.onerror=function(){serverMode=false;};
+    }catch(e){serverMode=false;}
+  }
+
+  // ---- 消息处理 ----
+  function handleMsg(d){
+    d=d.replace(/[\r\n]+$/,'');
+    if(d.indexOf('G5|')!==0)return;
+    if(d.indexOf('G5|created|')===0){
+      gameMode='wait';myRoomCode=d.split('|')[2];mySide='b';bReady=0;wReady=0;
+      setStatus('🎮 房间 '+myRoomCode+' · 等待对方加入，双方准备后开始');
+      showReady(myRoomCode);return;
+    }
+    if(d.indexOf('G5|joined|')===0){
+      var jp=d.split('|');
+      mySide=jp[3];myRoomCode=jp[2];
+      bReady=parseInt(jp[4])||0;wReady=parseInt(jp[5])||0;
+      gameMode='wait';
+      setStatus('房间 '+myRoomCode+' · 等待双方准备');
+      showReady(myRoomCode);return;
+    }
+    if(d.indexOf('G5|roomstate|')===0){
+      var rp=d.split('|');
+      bReady=parseInt(rp[2])||0;wReady=parseInt(rp[3])||0;
+      updReadyUI();return;
+    }
+    if(d.indexOf('G5|start|')===0){
+      hideReady();gameMode='online';myRoomCode=d.split('|')[2];mySide=d.split('|')[3];
+      newBoard();turn=1;gameOver=false;winner=0;lastXY=null;localHist=[];hoverPos=null;
+      bReady=0;wReady=0;   // 新一局重新准备
+      setStatus('联机对局中 · 你执'+(mySide==='b'?'黑':'白')+' · 房间 '+myRoomCode+' · 黑方先手');
+      draw();return;
+    }
+    if(d.indexOf('G5|resumed|')===0){
+      var rp=d.split('|');
+      gameMode='online';mySide=rp[3];myRoomCode=rp[2];
+      setStatus('🔗 已恢复对局 · 房间 '+myRoomCode);
+      if(ws&&ws.readyState===WebSocket.OPEN)ws.send('G5|state');
+      return;
+    }
+    if(d.indexOf('G5|state|')===0){
+      var sp=d.split('|');
+      var fen=sp[2],sturn=sp[4]||'b',sover=parseInt(sp[6])||0;
+      newBoard();
+      var items=fen.split(';');
+      for(var i=0;i<items.length;i++){
+        var it=items[i];if(!it)continue;
+        var pp=it.split(',');
+        if(pp.length!==3)continue;
+        var px=parseInt(pp[0]),py=parseInt(pp[1]),ps=parseInt(pp[2]);
+        if(px>=0&&px<N&&py>=0&&py<N)board[py][px]=ps;
+      }
+      turn=sturn==='b'?1:2;
+      gameOver=sover>0;winner=sover;
+      if(sover>0){
+        setStatus('对局已结束 · 点「我准备好了」再来一局');
+        showReady(myRoomCode);
+      }
+      // 找最后一步
+      lastXY=null;
+      if(items.length){var li=items[items.length-1].split(',');if(li.length>=2)lastXY=[parseInt(li[0]),parseInt(li[1])];}
+      draw();
+      setStatus('联机对局中 · 你执'+(mySide==='b'?'黑':'白')+' · '+(turn===1?'黑':'白')+'方走棋');
+      return;
+    }
+    if(d.indexOf('G5|mv|')===0){
+      var mp=d.split('|');
+      var c=mp[2].split(',');
+      var x=parseInt(c[0]),y=parseInt(c[1]),side=mp[3]==='b'?1:2;
+      board[y][x]=side;lastXY=[x,y];
+      if(mp[4]==='over'){
+        gameOver=true;winner=side;turn=(side===1)?2:1;
+        setStatus('🏆 '+(side===1?'黑':'白')+'方获胜！点「我准备好了」再来一局');
+        showReady(myRoomCode);   // 双方准备 → 服务器自动开新局
+      }else{
+        turn=(side===1)?2:1;
+        setStatus('联机对局中 · '+(turn===1?'黑':'白')+'方走棋');
+      }
+      draw();return;
+    }
+    if(d.indexOf('G5|undo_req_from|')===0){
+      var us=d.split('|')[2];
+      $('pTitle').textContent=(us==='b'?'对方（黑方）':'对方（白方）')+'请求悔棋，是否同意？';
+      $('pModal').classList.add('show');
+      return;
+    }
+    if(d.indexOf('G5|undo_wait')===0){setStatus('↩️ 悔棋请求已发送，等待对方同意...');return;}
+    if(d.indexOf('G5|undo_no')===0){setStatus('❌ 对方拒绝了悔棋');return;}
+    if(d.indexOf('G5|undo_pending')===0){setStatus('⚠️ 已有悔棋请求在处理中');return;}
+    if(d.indexOf('G5|undo|ok')===0){
+      setStatus('↩️ 悔棋成功');
+      if(ws&&ws.readyState===WebSocket.OPEN)ws.send('G5|state');
+      return;
+    }
+    if(d.indexOf('G5|peer_offline')===0){setStatus('⚠️ 对方掉线，等待重连（60秒）...');return;}
+    if(d.indexOf('G5|peer_resumed')===0){setStatus('✅ 对方已重新连接');return;}
+    if(d.indexOf('G5|peer_left')===0){gameMode='solo';mySide=null;myRoomCode=null;bReady=0;wReady=0;hideReady();newBoard();turn=1;gameOver=false;setStatus('对方已离开 · 回到单机模式');draw();return;}
+    if(d.indexOf('G5|left')===0){gameMode='solo';mySide=null;myRoomCode=null;bReady=0;wReady=0;hideReady();newBoard();turn=1;gameOver=false;setStatus('已离开房间 · 单机模式');draw();return;}
+    if(d.indexOf('G5|noroom')===0){setStatus('⚠️ 房间不存在');autoJoinCode='';return;}
+    if(d.indexOf('G5|full')===0){setStatus('⚠️ 房间已满，进不去（最多2人）');autoJoinCode='';return;}
+    if(d.indexOf('G5|already')===0){setStatus('⚠️ 你已在房间中');return;}
+    if(d.indexOf('G5|notturn')===0){setStatus('⚠️ 还没轮到你');return;}
+    if(d.indexOf('G5|bad')===0){setStatus('⚠️ 非法落子');return;}
+    if(d.indexOf('G5|noundo')===0){setStatus('⚠️ 没有可悔的棋');return;}
+    if(d.indexOf('G5|noperm')===0){setStatus('⚠️ 无权操作');return;}
+    if(d.indexOf('G5|over')===0){setStatus('对局已结束');return;}
+  }
+  $('pbYes').addEventListener('click',function(){$('pModal').classList.remove('show');if(ws)ws.send('G5|undo_ans|yes');});
+  $('pbNo').addEventListener('click',function(){$('pModal').classList.remove('show');if(ws)ws.send('G5|undo_ans|no');});
+
+  // ---- 按钮 ----
+  $('bBack').addEventListener('click',function(){
+    if(ws&&ws.readyState===WebSocket.OPEN&&myRoomCode)ws.send('G5|leave');
+    setTimeout(function(){location.href='chat.html';},150);
+  });
+  // 兜底：浏览器后退 / 关闭页面离开时，也退出房间（刷新除外，保留断线恢复）
+  window.addEventListener('pagehide',function(){
+    try{
+      var nav=performance.getEntriesByType&&performance.getEntriesByType('navigation')[0];
+      if(nav&&nav.type==='reload')return;   // 刷新：保留房间待重连恢复
+    }catch(e){}
+    if(ws&&ws.readyState===WebSocket.OPEN&&myRoomCode){
+      try{ws.send('G5|leave');}catch(e){}
+    }
+  });
+  $('bRestart').addEventListener('click',function(){
+    if(gameMode!=='solo'){
+      // 联机：对局已结束时，重开=双方准备再来一局
+      if(myRoomCode&&gameOver){showReady(myRoomCode);setStatus('🔄 再来一局 · 双方都点「我准备好了」后自动开始');return;}
+      setStatus('联机中不能单机重开');return;
+    }
+    doLocalNew();setStatus('已重新开始 · 黑方先手');
+  });
+  $('bUndo').addEventListener('click',function(){
+    if(gameMode==='online'){
+      if(!ws||ws.readyState!==WebSocket.OPEN){setStatus('未连接');return;}
+      ws.send('G5|undo_req');setStatus('↩️ 悔棋请求已发送，等待对方同意...');return;
+    }
+    doLocalUndo();
+  });
+  $('bCreate').addEventListener('click',function(){
+    if(!ws||ws.readyState!==WebSocket.OPEN){setStatus('未连接服务器');return;}
+    if(gameMode!=='solo'){setStatus('已在房间中');return;}
+    ws.send('G5|create');
+  });
+  $('bJoin').addEventListener('click',function(){$('roomModal').classList.add('show');});
+  $('rmClose').addEventListener('click',function(){$('roomModal').classList.remove('show');});
+  $('rmGo').addEventListener('click',function(){
+    var c=$('rmCode').value.trim();
+    if(c&&/^\d{4}$/.test(c)){ws.send('G5|join|'+c);$('roomModal').classList.remove('show');}
+    else setStatus('⚠️ 房间码应为4位数字');
+  });
+  $('rmCode').addEventListener('keydown',function(e){if(e.key==='Enter')$('rmGo').click();});
+  $('bRoomCode').addEventListener('click',function(){
+    if(!myRoomCode){setStatus('当前不在房间中');return;}
+    $('codeBig').textContent=myRoomCode;$('codeModal').classList.add('show');
+  });
+  $('cmClose').addEventListener('click',function(){$('codeModal').classList.remove('show');});
+  $('cmCopy').addEventListener('click',function(){
+    var t=$('codeBig').textContent;
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(t).then(function(){setStatus('✅ 房间码 '+t+' 已复制');}).catch(function(){setStatus('复制失败');});
+    }else setStatus('请手动记下房间码');
+  });
+  $('bLeave').addEventListener('click',function(){
+    if(gameMode==='solo'){setStatus('当前不在房间中');return;}
+    if(ws&&ws.readyState===WebSocket.OPEN)ws.send('G5|leave');
+  });
+
+  // ---- 启动 ----
+  newBoard();draw();setStatus('单机模式 · 黑方先手');
+  connect();
+})();
+</script>
+</body>
+</html>

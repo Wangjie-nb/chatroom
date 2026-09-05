@@ -1,0 +1,1049 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>🎯 枪战肉鸽</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-user-select: none; user-select: none; }
+  html, body { height: 100%; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: radial-gradient(1200px 600px at 50% -10%, #3a4a3a, #1e2a1e 70%);
+    color: #e8f0e8; display: flex; flex-direction: column;
+    max-width: 760px; margin: 0 auto; min-height: 100vh;
+  }
+  header {
+    flex: none; display: flex; align-items: center; gap: .5rem;
+    padding: .5rem .7rem;
+    background: linear-gradient(135deg, #2c3e2c, #1f2f1f);
+    border-bottom: 2px solid #4a6a3a; font-size: .85rem;
+  }
+  header button {
+    border: none; cursor: pointer; font-weight: 700; font-size: .85rem;
+    background: linear-gradient(135deg, #6a8a5a, #4a6a3a); color: #fff;
+    padding: .4rem .8rem; border-radius: 10px;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  }
+  header button:active { transform: translateY(1px) }
+  header h1 { flex: 1; text-align: center; font-size: 1rem }
+  .st { font-size: .72rem; opacity: .85 }
+  #hud {
+    flex: none; display: flex; gap: .5rem; align-items: center;
+    padding: .4rem .7rem; font-size: .8rem;
+    background: rgba(20,30,20,.6); border-bottom: 1px dashed #4a6a3a;
+  }
+  #hud .b { background: rgba(255,255,255,.08); border-radius: 8px; padding: .2rem .5rem }
+  #hud .b b { color: #ffd54f }
+  #hud .b.leak b { color: #ff6e6e }
+  #stage {
+    flex: 1; min-height: 0; position: relative; margin: .4rem .5rem;
+  }
+  #cv { width: 100%; height: 100%; display: block; border-radius: 10px;
+    background: #2a3a2a; box-shadow: 0 6px 24px rgba(0,0,0,.5); touch-action: none; }
+  #aim { position: absolute; right: 14px; bottom: 70px; width: 92px; height: 92px;
+    border-radius: 50%; border: 2px solid rgba(255,255,255,.5);
+    background: rgba(255,255,255,.06); display: none; touch-action: none; }
+  #aim.on { display: block }
+  #aim .knob { position: absolute; width: 40px; height: 40px; border-radius: 50%;
+    left: 50%; top: 50%; margin: -20px 0 0 -20px;
+    background: radial-gradient(circle at 35% 35%, #ffd54f, #ff9800);
+    box-shadow: 0 3px 10px rgba(0,0,0,.5); }
+  #ctl {
+    flex: none; display: flex; gap: .5rem; justify-content: center; align-items: center;
+    padding: .35rem .5rem;
+  }
+  #ctl button {
+    border: 2px solid #4a6a3a; background: linear-gradient(135deg,#3a503a,#2c3e2c);
+    color: #dfe8df; font-size: .78rem; font-weight: 700; cursor: pointer;
+    border-radius: 999px; padding: .3rem .85rem; touch-action: none;
+  }
+  #ctl button.on { background: linear-gradient(135deg,#ff9800,#f57c00); border-color: #ffb74d; color:#fff }
+  #pad {
+    flex: none; display: flex; gap: 10px; justify-content: center; align-items: center;
+    padding: .3rem 0 .4rem;
+  }
+  #pad button { width: 62px; height: 52px; border: none; border-radius: 14px; font-size: 1.25rem; cursor: pointer;
+    background: linear-gradient(135deg, #4a5a4a, #334533); color: #dfe8df;
+    box-shadow: 0 3px 8px rgba(0,0,0,.35); touch-action: none; }
+  #pad button:active { transform: translateY(2px); box-shadow: none; background: #5a6a5a }
+  #bFire {
+    width: 74px !important; font-size: .82rem !important; font-weight: 700;
+    background: linear-gradient(135deg,#e53935,#c62828) !important; color: #fff !important;
+    border: 2px solid #ef9a9a !important;
+  }
+  #bFire:disabled { opacity: .35; }
+  #bFire.hold { background: linear-gradient(135deg,#ffb74d,#f57c00) !important; transform: scale(.96) }
+  .hint { flex: none; text-align: center; font-size: .68rem; color: #8a9a8a;
+    padding: .25rem 0 .5rem; }
+  #pz {
+    position: fixed; inset: 0; z-index: 45; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.55); backdrop-filter: blur(2px); cursor: pointer;
+  }
+  #pz.open { display: flex }
+  #pz .t { font-size: 1.5rem; color: #ffd54f; font-weight: 800;
+    background: rgba(0,0,0,.5); padding: .6rem 1.4rem; border-radius: 14px;
+    border: 2px dashed #ffd54f; }
+  /* 升级面板 */
+  #lv {
+    position: fixed; inset: 0; z-index: 30; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.62); backdrop-filter: blur(3px);
+  }
+  #lv.open { display: flex }
+  #lv .box {
+    width: min(88vw, 400px); background: linear-gradient(160deg, #2f4230, #243227);
+    border: 2px solid #5a8a4a; border-radius: 18px; padding: 1.1rem; text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6);
+  }
+  #lv h2 { font-size: 1.15rem; margin-bottom: .3rem; color: #ffd54f }
+  #lv p.sub { font-size: .75rem; color: #9aac9a; margin-bottom: .9rem }
+  #lv .opts { display: flex; flex-direction: column; gap: .55rem }
+  #lv .opt {
+    border: 2px solid #4a6a3a; background: linear-gradient(135deg, #3a503a, #2c3e2c);
+    border-radius: 12px; padding: .7rem .9rem; cursor: pointer; text-align: left;
+    transition: transform .1s, border-color .1s;
+  }
+  #lv .opt:hover { transform: translateY(-2px); border-color: #ffd54f }
+  #lv .opt .n { font-weight: 700; font-size: .95rem; color: #ffd54f }
+  #lv .opt .d { font-size: .72rem; color: #a9b9a9; margin-top: .2rem }
+  #lv .box { animation: lvIn .22s ease }
+  @keyframes lvIn { from { transform: scale(.85); opacity: 0 } to { transform: scale(1); opacity: 1 } }
+  #upBanner {
+    position: fixed; top: 12px; left: 50%; transform: translateX(-50%); z-index: 26;
+    background: rgba(18,28,18,.9); border: 2px solid #ffd54f; color: #ffd54f;
+    font-size: .78rem; font-weight: 700; padding: .4rem 1rem; border-radius: 999px;
+    display: none; white-space: nowrap; box-shadow: 0 4px 16px rgba(0,0,0,.5);
+    animation: upBlink 1.2s ease-in-out infinite;
+  }
+  #upBanner.on { display: block }
+  @keyframes upBlink { 0%,100% { box-shadow: 0 4px 16px rgba(0,0,0,.5); } 50% { box-shadow: 0 4px 22px rgba(255,213,79,.5); } }
+  /* 结算 */
+  #over {
+    position: fixed; inset: 0; z-index: 40; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.7); backdrop-filter: blur(4px);
+  }
+  #over.open { display: flex }
+  #over .box { width: min(82vw, 340px); border-radius: 18px; padding: 1.4rem; text-align: center;
+    border: 2px solid; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #over .win { background: linear-gradient(160deg,#2e4630,#223226); border-color: #ffd54f }
+  #over .lose { background: linear-gradient(160deg,#462e2e,#322222); border-color: #ff6e6e }
+  #lv .box, #over .box, #diffSel .box { position: relative }
+  .close {
+    position: absolute; top: .45rem; right: .45rem; width: 32px; height: 32px;
+    border-radius: 50%; border: none; cursor: pointer; z-index: 6;
+    background: rgba(0,0,0,.4); color: #ffd54f; font-size: .9rem; font-weight: 800;
+    line-height: 1; display: flex; align-items: center; justify-content: center;
+    box-shadow: 0 2px 6px rgba(0,0,0,.3);
+  }
+  .close:active { transform: scale(.9) }
+  #diffSel { position: fixed; inset: 0; z-index: 50; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.68); backdrop-filter: blur(4px); }
+  #diffSel.open { display: flex }
+  #diffSel .box { width: min(88vw, 360px); background: linear-gradient(160deg,#2f4230,#243227);
+    border: 2px solid #5a8a4a; border-radius: 18px; padding: 1.2rem; text-align: center;
+    box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #diffSel h2 { font-size: 1.2rem; color: #ffd54f; margin-bottom: .3rem }
+  /* 主菜单 + 联机面板 */
+  #menu, #pvpPanel {
+    position: fixed; inset: 0; z-index: 48; display: none; align-items: center; justify-content: center;
+    background: rgba(0,0,0,.68); backdrop-filter: blur(4px);
+  }
+  #menu.open, #pvpPanel.open { display: flex }
+  #menu .box, #pvpPanel .box { position: relative; width: min(88vw, 380px);
+    background: linear-gradient(160deg,#2f4230,#243227); border: 2px solid #5a8a4a;
+    border-radius: 18px; padding: 1.2rem; text-align: center; box-shadow: 0 12px 40px rgba(0,0,0,.6); }
+  #menu h2, #pvpPanel h2 { font-size: 1.2rem; color: #ffd54f; margin-bottom: .3rem }
+  #menu .sub, #pvpPanel .sub { font-size: .75rem; color: #9aac9a; margin-bottom: .8rem }
+  #menu button.mode { display: block; width: 100%; margin: .45rem 0; padding: .7rem;
+    border: 2px solid #4a6a3a; border-radius: 12px; cursor: pointer; font-weight: 700;
+    font-size: 1rem; color: #ffd54f; background: linear-gradient(135deg,#3a503a,#2c3e2c); }
+  #menu button.mode:hover { border-color: #ffd54f; transform: translateY(-1px) }
+  #pvpPanel .opt { border: 2px solid #4a6a3a; background: linear-gradient(135deg,#3a503a,#2c3e2c);
+    border-radius: 12px; padding: .6rem .8rem; cursor: pointer; text-align: left; margin-bottom: .45rem; }
+  #pvpPanel .opt:hover { border-color: #ffd54f }
+  #pvpPanel .opt .n { font-weight: 700; color: #ffd54f }
+  #pvpPanel .opt .d { font-size: .72rem; color: #a9b9a9 }
+  #pvpPanel input { width: 100%; padding: .55rem .7rem; border: 2px solid #4a6a3a; border-radius: 10px;
+    background: #1c2a1e; color: #fff; font-size: .95rem; outline: none; box-sizing: border-box; }
+  #pvpPanel button { margin-top: .55rem; border: none; cursor: pointer; font-weight: 700;
+    background: linear-gradient(135deg,#6a8a5a,#4a6a3a); color:#fff; font-size: .9rem;
+    padding: .5rem 1rem; border-radius: 10px; }
+  #pvpPanel button.ghost { background: rgba(0,0,0,.25); border: 2px solid #5a6a5a }
+  #roomWait { display: none; margin-top: .3rem }
+  #roomWait .row { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap }
+  #rwCode { color: #ffd54f; letter-spacing: .15em; font-size: 1.25rem }
+  #rwState { font-size: .8rem; color: #cdd8cd; margin: .5rem 0 }
+  #gunNotice { position: fixed; top: 10%; left: 50%; transform: translateX(-50%); z-index: 99;
+    background: rgba(0,0,0,.8); color: #ffd54f; padding: .5rem 1rem; border-radius: 10px;
+    font-size: .85rem; border: 2px solid #ffd54f; display: none; }
+  #over h2 { font-size: 1.4rem; margin-bottom: .4rem }
+  #over p { font-size: .85rem; color: #cdd8cd; margin: .2rem 0 }
+  #over button { margin-top: .8rem; border: none; cursor: pointer; font-weight: 700;
+    background: linear-gradient(135deg,#6a8a5a,#4a6a3a); color:#fff; font-size: .95rem;
+    padding: .55rem 1.4rem; border-radius: 12px; box-shadow: 0 3px 10px rgba(0,0,0,.4) }
+  #over button.ghost { background: rgba(0,0,0,.25); border: 2px solid #5a6a5a; margin-left: .5rem }
+</style>
+</head>
+<body>
+  <header>
+    <button id="bBack">← 返回</button>
+    <h1>🎯 枪战肉鸽</h1>
+    <span class="st" id="st">连接中</span>
+  </header>
+  <div id="hud">
+    <span class="b">🌊 波次 <b id="hWave">-/-</b></span>
+    <span class="b leak">🛡️ 漏怪 <b id="hLeak">0/0</b></span>
+    <span class="b">⭐ 等级 <b id="hLv">1</b></span>
+    <span class="b">✨ 经验 <b id="hExp">0/0</b></span>
+    <span class="b">🔫 伤害 <b id="hDmg">20</b></span>
+    <span class="b">🧨 弹药 <b id="hMag">-</b></span>
+  </div>
+  <div id="stage">
+    <canvas id="cv"></canvas>
+    <div id="aim"><div class="knob" id="aimKnob"></div></div>
+  </div>
+  <div id="ctl">
+    <button id="bMode">⚙️ 自动开火</button>
+    <button id="bPause">⏸ 暂停</button>
+  </div>
+  <div id="pad">
+    <button id="bLeft" data-dx="-1">◀</button>
+    <button id="bFire" disabled>🔫 发射</button>
+    <button id="bRight" data-dx="1">▶</button>
+  </div>
+  <div class="hint">◀▶ 左右移动 · 自己瞄准（圆盘/拖动）· 自动开火=自动连射，瞄准开火=按住发射</div>
+  <div id="pz"><div class="t">⏸ 已暂停 · 点击继续</div></div>
+
+  <div id="upBanner">⏳ 升级选择中 · 游戏继续</div>
+  <div id="lv"><div class="box">
+    <button class="close" id="lvClose">✕</button>
+    <h2>🎉 升级！</h2>
+    <p class="sub">⚡ 选择加成后继续战斗（游戏不暂停）</p>
+    <div class="opts" id="lvOpts"></div>
+    <div class="sub" id="lvTmr" style="color:#ffd54f;font-size:.8rem;margin-top:.5rem;font-weight:700">⏱ 30 秒内选择加成，超时将自动随机选择</div>
+  </div></div>
+
+  <div id="over"><div class="box" id="overBox">
+    <button class="close" id="overClose">✕</button>
+    <h2 id="overT">胜利</h2>
+    <p id="overP"></p>
+    <button id="bAgain">再来一局</button>
+    <button id="bQuit" class="ghost">🏠 返回聊天室</button>
+  </div></div>
+
+  <div id="diffSel"><div class="box">
+    <button class="close" id="diffClose">✕</button>
+    <h2>🎯 枪战肉鸽</h2>
+    <p class="sub">选择难度开始</p>
+    <div class="opts">
+      <div class="opt" data-d="0"><div class="n">🟢 简单</div><div class="d">8 波 · 怪弱 · 漏怪上限 28</div></div>
+      <div class="opt" data-d="1"><div class="n">🟡 中等</div><div class="d">12 波 · 强度适中 · 漏怪上限 18</div></div>
+      <div class="opt" data-d="2"><div class="n">🔴 困难</div><div class="d">16 波 · 怪强且快 · 漏怪上限 12</div></div>
+    </div>
+  </div></div>
+
+  <div id="menu"><div class="box">
+    <button class="close" id="menuClose">✕</button>
+    <h2>🎯 枪战肉鸽</h2>
+    <p class="sub">选择模式开始游戏</p>
+    <button class="mode" id="bSolo">🎮 单机模式</button>
+    <button class="mode" id="bPvp">🌐 联机模式（双人共守）</button>
+  </div></div>
+
+  <div id="pvpPanel"><div class="box">
+    <button class="close" id="pvpClose">✕</button>
+    <h2>🌐 联机模式</h2>
+    <div id="roomWait">
+      <div>房间 <b id="rwCode"></b></div>
+      <div id="rwState"></div>
+      <div class="row"><button id="bReady">✅ 准备</button></div>
+      <div class="row">
+        <button id="bInvite" class="ghost">📨 发邀请到聊天室</button>
+        <button id="bLeaveRoom" class="ghost">🚪 离开房间</button>
+      </div>
+    </div>
+    <div id="pvpCreate">
+      <p class="sub">创建房间（选择难度）</p>
+      <div class="opt" data-d="0"><div class="n">🟢 简单</div><div class="d">8 波 · 怪弱 · 漏怪上限 28</div></div>
+      <div class="opt" data-d="1"><div class="n">🟡 中等</div><div class="d">12 波 · 强度适中 · 漏怪上限 18</div></div>
+      <div class="opt" data-d="2"><div class="n">🔴 困难</div><div class="d">16 波 · 怪强且快 · 漏怪上限 12</div></div>
+    </div>
+    <div id="pvpJoin">
+      <p class="sub">加入房间</p>
+      <input id="iJoin" placeholder="输入房间码（如 G0001）" maxlength="6">
+      <button id="bJoin" style="width:100%">加入房间</button>
+    </div>
+  </div></div>
+
+  <div id="gunNotice"></div>
+
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const W = 16, H = 20;
+let ws = null;
+let diff = 1;              // 默认中等
+let started = false, over = false, overRes = 0;
+let mode = '';            // '' 菜单  'solo' 单机  'pvp' 联机
+let role = 'a';            // 联机角色 a=炮台0(左) b=炮台1(右)
+let roomCode = '';
+let rwRole = 'a', rwRa = 0, rwRb = 0;
+let pvpStarted = false;
+function myIdx() { return mode === 'pvp' ? (role === 'b' ? 1 : 0) : 0; }
+function myTurret() { return st ? st.turrets[myIdx()] : null; }
+function myChoice() { return st && st.choices ? st.choices[myIdx()] : null; }
+function addNotice(t) {
+  const n = $('gunNotice');
+  n.textContent = t; n.style.display = 'block';
+  clearTimeout(n._t); n._t = setTimeout(() => n.style.display = 'none', 3000);
+}
+let st = null;             // 状态对象（最新）
+let prevState = null;      // 上一帧状态（用于插值）
+let stateAt = 0;           // 收到最新状态的时间戳
+let curTarget = null;
+const keys = { up:false, down:false, left:false, right:false };
+const padKeys = { up:false, down:false, left:false, right:false };
+let aimMode = 'auto';      // auto: 鼠标拖动  aim: 触屏圆盘
+let aimAngle = -Math.PI/2;
+let mouseDown = false, mouseAimX = 0, mouseAimY = 0;
+let touchAim = false, aimActive = false, aimTouchId = null;
+let lastStateStr = '';
+function lerpAng(a, b, k) { let d = b - a; while (d > Math.PI) d -= Math.PI*2; while (d < -Math.PI) d += Math.PI*2; return a + d*k; }
+
+// ---------- 尺寸 ----------
+function sizeCanvas() {
+  const r = $('stage').getBoundingClientRect();
+  const w = r.width, h = r.height;
+  const dpr = window.devicePixelRatio || 1;
+  cv.style.width = w + 'px'; cv.style.height = h + 'px';
+  cv.width = Math.floor(w * dpr); cv.height = Math.floor(h * dpr);
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+window.addEventListener('resize', () => { sizeCanvas(); draw(performance.now()); });
+
+// ---------- 网络 ----------
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  ws = new WebSocket(proto + location.host + '/ws');
+  ws.onopen = () => {
+    $('st').textContent = '已连接';
+    while (pendingSends.length) { try { ws.send(pendingSends.shift()); } catch(e) {} }
+  };
+  ws.onmessage = e => handle(e.data);
+  ws.onclose = () => { $('st').textContent = '已断开'; setTimeout(connect, 1500); };
+}
+let pendingSends = [];
+function send(t) {
+  if (ws && ws.readyState === 1) ws.send(t);
+  else if (ws) pendingSends.push(t);   // 未连接先缓存，onopen 后补发
+}
+function handle(d) {
+  // ---- 联机房间消息 ----
+  if (d.indexOf('GUN|created|') === 0) {
+    roomCode = d.slice(12); mode = 'pvp'; rwRole = 'a'; rwRa = 0; rwRb = 0;
+    roomWaitShow();
+    addNotice('房间 ' + roomCode + ' 已创建，点「发邀请」分享给好友');
+    return;
+  }
+  if (d.indexOf('GUN|joined|') === 0) {
+    const p = d.slice(11).split('|');
+    roomCode = p[0]; mode = 'pvp'; rwRole = p[1]; rwRa = +p[2]; rwRb = +p[3];
+    roomWaitShow();
+    return;
+  }
+  if (d.indexOf('GUN|roomstate|') === 0) {
+    const p = d.slice(14).split('|');
+    rwRa = +p[0]; rwRb = +p[1];
+    updateReady();
+    return;
+  }
+  if (d.indexOf('GUN|pinit|') === 0) {
+    const p = d.slice(10).split('|');
+    roomCode = p[0]; diff = +p[1]; role = p[4];
+    started = true; over = false; pvpStarted = true;
+    $('hWave').textContent = '1/' + p[2];
+    $('hLeak').textContent = '0/' + p[3];
+    $('lv').classList.remove('open');
+    $('over').classList.remove('open');
+    $('pvpPanel').style.display = 'none';
+    aimAngle = -Math.PI/2;
+    return;
+  }
+  if (d.indexOf('GUN|peer_wait') === 0) {
+    // 等待中对方离开：房间保留，等新玩家补位
+    addNotice('对方已离开，房间保留中，等待新玩家加入…');
+    if (!pvpStarted && roomCode) { rwRa = 0; rwRb = 0; updateReady(); }
+    return;
+  }
+  if (d.indexOf('GUN|peer_left') === 0) {
+    // 对局中对方离开：房间解散
+    pvpStarted = false; over = true;
+    $('over').classList.remove('open');
+    $('pvpPanel').style.display = 'none';
+    $('menu').style.display = 'flex';
+    addNotice('对方已离开，房间已解散');
+    return;
+  }
+  if (d.indexOf('GUN|noroom') === 0) { addNotice('房间不存在或已解散'); showPvpPanel(); return; }
+  if (d.indexOf('GUN|full') === 0) { addNotice('房间已满，进不去'); showPvpPanel(); return; }
+  if (d.indexOf('GUN|left') === 0) { mode = ''; roomCode = ''; pvpStarted = false; showPvpPanel(); return; }
+  if (d.indexOf('GUN|init|') === 0) {
+    const p = d.slice(8).split('|');
+    diff = +p[0]; started = true; over = false;
+    $('hWave').textContent = '1/' + p[1];
+    $('hLeak').textContent = '0/' + p[2];
+    $('lv').classList.remove('open');
+    $('over').classList.remove('open');
+    aimAngle = -Math.PI/2;
+    return;
+  }
+  if (d.indexOf('GUN|state|') === 0) {
+    prevState = st;
+    st = parseState(d.slice(10));
+    stateAt = performance.now();
+    updateHud();
+    return;
+  }
+  if (d.indexOf('GUN|over|') === 0) {
+    overRes = +d.slice(9);
+    endGame(overRes);
+    return;
+  }
+  if (d.indexOf('GUN|err|') === 0) { $('st').textContent = d.slice(8); }
+}
+function parseState(s) {
+  // 引擎 dump 固定段序：turrets|波次(5字段)|怪|子弹|三选一
+  const p = s.split('|');
+  const ts = p[0].split(';').map(t => { const q = t.split(',').map(Number);
+    return { x:q[0], y:q[1], ang:q[2], alive:q[3], lv:q[4], exp:q[5], expNeed:q[6],
+             dmg:q[7], atk:q[8], pierce:q[9], hp:q[10], maxhp:q[11], pend:q[12], spread:q[13],
+             mag:q[14], magSize:q[15], reloadT:q[16] }; });
+  const wv = [+p[1], +p[2], +p[3], +p[4], +p[5]];
+  const ms = p[6] ? p[6].split(';').map(m => { const q = m.split(',').map(Number);
+    return { x:q[0], y:q[1], hp:q[2], maxhp:q[3], type:q[4], exp:q[5],
+             slow:q[6], slowMul:q[7], burn:q[8], poison:q[9], spd:q[10], id:q[11] }; }) : [];
+  const bs = p[7] ? p[7].split(';').map(b => { const q = b.split(',').map(Number);
+    return { x:q[0], y:q[1], vx:q[2], vy:q[3], owner:q[4], dmg:q[5], pierce:q[6] }; }) : [];
+  const cs = p[8] ? p[8].split(';').map(c => c.split(',').map(Number)) : [];
+  return { turrets: ts, wave: wv, monsters: ms, bullets: bs, choices: cs };
+}
+const BUFF_DESC = [
+  '子弹伤害 +50%，输出更猛',
+  '射击速度 +40%，火力更密',
+  '子弹穿透 +1，一穿多怪',
+  '命中减速 45%，怪变慢',
+  '点燃：命中持续灼烧',
+  '中毒：命中持续毒伤，可叠',
+  '散射 +1，一次多发子弹',
+  '炮台恢复 2 点生命',
+  '弹夹容量 +6，换弹前多打 6 发'
+];
+const BUFF_ICON = ['💥','⚡','🔩','❄️','🔥','☠️','🌊','🛡️','🧨'];
+function updateHud() {
+  const t = myTurret();
+  if (t) {
+    $('hLv').textContent = t.lv;
+    $('hExp').textContent = t.exp + '/' + t.expNeed;
+    $('hDmg').textContent = Math.round(t.dmg * 20);
+    $('hMag').textContent = t.reloadT > 0 ? '换弹中' : (t.mag + '/' + t.magSize);
+    $('hWave').textContent = st.wave[0] + '/' + st.wave[1];
+    $('hLeak').textContent = st.wave[2] + '/' + st.wave[3];
+  }
+}
+
+// ---------- 渲染 ----------
+const MON_COLOR = ['#7ed957', '#ffd54f', '#c77dff', '#ff6e6e'];
+const MON_DARK = ['#2e7d32', '#b26a00', '#6a1b9a', '#b71c1c'];
+const MON_SIZE = [9, 12, 16, 20];
+let __bgGrad = null, __bgKey = '';   // 背景渐变缓存
+function draw(ts) {
+  if (!st && !prevState) {   // 还没有任何对局状态：只清屏
+    const rr = cv.getBoundingClientRect();
+    ctx.clearRect(0, 0, rr.width, rr.height);
+    return;
+  }
+  const k = (prevState && st) ? Math.max(0, Math.min(1, (ts - stateAt) / 40)) : 1;
+  const rect = cv.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  const tile = Math.min(w / W, h / H);
+  const ox = (w - tile * W) / 2, oy = (h - tile * H) / 2;
+  ctx.clearRect(0, 0, w, h);
+  // 背景（渐变对象缓存，避免每帧新建的开销）
+  const bgKey = ox + ',' + oy + ',' + tile;
+  if (!__bgGrad || __bgKey !== bgKey) {
+    __bgGrad = ctx.createLinearGradient(0, oy, 0, oy + tile * H);
+    __bgGrad.addColorStop(0, '#3a4a3a'); __bgGrad.addColorStop(0.55, '#2e3e2e'); __bgGrad.addColorStop(1, '#28382c');
+    __bgKey = bgKey;
+  }
+  ctx.fillStyle = __bgGrad; ctx.fillRect(ox, oy, tile * W, tile * H);
+  // 网格
+  ctx.strokeStyle = 'rgba(255,255,255,.05)'; ctx.lineWidth = 1;
+  for (let i = 1; i < W; i++) { ctx.beginPath(); ctx.moveTo(ox + i*tile, oy); ctx.lineTo(ox + i*tile, oy + tile*H); ctx.stroke(); }
+  for (let i = 1; i < H; i++) { ctx.beginPath(); ctx.moveTo(ox, oy + i*tile); ctx.lineTo(ox + tile*W, oy + i*tile); ctx.stroke(); }
+  // 顶部刷怪区（半透明红带）
+  ctx.fillStyle = 'rgba(255,60,60,.08)';
+  ctx.fillRect(ox, oy, tile * W, tile * 1.5);
+  ctx.fillStyle = 'rgba(255,60,60,.4)'; ctx.font = tile * 0.45 + 'px sans-serif';
+  ctx.fillText('▼ 怪物入口', ox + tile * 0.4, oy + tile * 0.9);
+  // 漏怪线（底部红线）
+  const ly = oy + tile * (H - 0.5);
+  ctx.strokeStyle = 'rgba(255,80,80,.7)'; ctx.setLineDash([6, 5]); ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.moveTo(ox, ly); ctx.lineTo(ox + tile * W, ly); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = 'rgba(255,80,80,.85)'; ctx.font = tile * 0.42 + 'px sans-serif';
+  ctx.fillText('⚑ 防线（怪到此处漏一只）', ox + tile * 0.4, ly + tile * 0.8);
+  // 基地（底部）
+  const by0 = oy + tile * (H - 1.0);
+  ctx.fillStyle = 'rgba(74,106,58,.35)';
+  ctx.fillRect(ox, by0, tile * W, tile * 1.0);
+  // 子弹（实体弹头 + 短弹尾）
+  // 子弹：按索引对上一帧插值（子弹速度较快，40ms 推送直接跳位置会显得卡），
+  // 用一条"光线"（拖尾+弹头）一次 stroke 画完，比 4 次 arc 快很多
+  const pbArr = prevState ? prevState.bullets : [];
+  const nb = st ? st.bullets.length : 0;
+  const sameLen = pbArr.length === nb;
+  ctx.save();
+  ctx.lineCap = 'round';
+  ctx.lineWidth = Math.max(2.5, tile * 0.085);
+  ctx.strokeStyle = 'rgba(255,213,79,.9)';
+  ctx.fillStyle = '#fff7cc';
+  for (let i = 0; i < nb; i++) {
+    const b = st.bullets[i];
+    const pb = sameLen ? (pbArr[i] || null) : null;
+    const ix = pb ? pb.x + (b.x - pb.x) * k : b.x;
+    const iy = pb ? pb.y + (b.y - pb.y) * k : b.y;
+    const bx = ox + ix * tile, by = oy + iy * tile;
+    const ang = Math.atan2(b.vy, b.vx);
+    const px = Math.cos(ang), py = Math.sin(ang);
+    ctx.beginPath();
+    ctx.moveTo(bx - px * 7, by - py * 7);
+    ctx.lineTo(bx + px * 1.5, by + py * 1.5);
+    ctx.stroke();
+    ctx.beginPath(); ctx.arc(bx, by, Math.max(1.5, tile * 0.045), 0, Math.PI * 2); ctx.fill();
+  }
+  ctx.restore();
+  // 怪（按唯一 ID 匹配上一帧插值，击杀/新增不引起错位）
+  const prevById = {};
+  if (prevState) for (const mm of prevState.monsters) prevById[mm.id] = mm;
+  const lite = st ? st.monsters.length > 40 : false;   // 怪多时简化绘制保证流畅（st 可能为 null，必须判空）
+  if (st) for (let i = 0; i < st.monsters.length; i++) {
+    const m = st.monsters[i];
+    const pv = prevById[m.id] || null;
+    const ix = pv ? pv.x + (m.x - pv.x) * k : m.x;
+    const iy = pv ? pv.y + (m.y - pv.y) * k : m.y;
+    const mx = ox + ix * tile, my = oy + iy * tile;
+    const r = MON_SIZE[m.type] * tile / 16;
+    if (lite && m.type <= 1) {   // 简化模式：小怪只画实心圆
+      ctx.fillStyle = MON_DARK[m.type];
+      ctx.beginPath(); ctx.arc(mx, my, r * 0.85, 0, Math.PI*2); ctx.fill();
+      continue;
+    }
+    if (m.slow > 0) {
+      ctx.strokeStyle = 'rgba(120,200,255,.8)'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(mx, my, r + 3.5, 0, Math.PI*2); ctx.stroke();
+    }
+    if (m.burn > 0) { ctx.fillStyle = 'rgba(255,120,40,.35)'; ctx.beginPath(); ctx.arc(mx, my, r+2, 0, Math.PI*2); ctx.fill(); }
+    if (m.poison > 0) { ctx.fillStyle = 'rgba(140,255,120,.3)'; ctx.beginPath(); ctx.arc(mx, my, r+2, 0, Math.PI*2); ctx.fill(); }
+    drawMonster(m, mx, my, r);
+    const bw = r * 2.2, bhp = Math.max(0, m.hp / m.maxhp);
+    ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(mx - bw/2, my - r - 7, bw, 3.5);
+    ctx.fillStyle = bhp > 0.5 ? '#7ed957' : (bhp > 0.25 ? '#ffd54f' : '#ff6e6e');
+    ctx.fillRect(mx - bw/2, my - r - 7, bw * bhp, 3.5);
+  }
+  // 弹道线（淡色虚线，指向瞄准方向）
+  if (st) for (let i = 0; i < st.turrets.length; i++) {
+    const t = st.turrets[i];
+    if (!t.alive) continue;
+    const pv = prevState && prevState.turrets[i] ? prevState.turrets[i] : null;
+    const tx = pv ? pv.x + (t.x - pv.x) * k : t.x;
+    const ty = pv ? pv.y + (t.y - pv.y) * k : t.y;
+    const ta = pv ? lerpAng(pv.ang, t.ang, k) : t.ang;
+    const cx = ox + tx * tile, cy = oy + ty * tile;
+    const px = Math.cos(ta), py = Math.sin(ta);
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,0.13)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([5, 7]);
+    const l = Math.max(tile * W, tile * H) * 1.4;
+    ctx.beginPath();
+    ctx.moveTo(cx + px * tile * 0.45, cy + py * tile * 0.45);
+    ctx.lineTo(cx + px * l, cy + py * l);
+    ctx.stroke();
+    ctx.restore();
+  }
+  // 炮台（插值位置与角度）
+  if (st) for (let i = 0; i < st.turrets.length; i++) {
+    const t = st.turrets[i];
+    if (!t.alive) continue;
+    const pv = prevState && prevState.turrets[i] ? prevState.turrets[i] : null;
+    const tx = pv ? pv.x + (t.x - pv.x) * k : t.x;
+    const ty = pv ? pv.y + (t.y - pv.y) * k : t.y;
+    const ta = pv ? lerpAng(pv.ang, t.ang, k) : t.ang;
+    drawTurret({ ...t, x: tx, y: ty, ang: ta }, ox + tx * tile, oy + ty * tile, tile, i === 0 ? '#f9a825' : '#42a5f5', i === 0);
+  }
+}
+function drawTurret(t, cx, cy, tile, color, me) {
+  const R = tile * 0.42, ang = t.ang;
+  const px = Math.cos(ang), py = Math.sin(ang);
+  // 投影
+  ctx.fillStyle = 'rgba(0,0,0,.3)';
+  ctx.beginPath(); ctx.ellipse(cx + tile*0.05, cy + tile*0.08, R*1.02, R*0.8, 0, 0, Math.PI*2); ctx.fill();
+  // 炮管（黑描边 + 主色 + 炮口帽）
+  const bLen = R * 1.18, bW = R * 0.46;
+  ctx.lineCap = 'butt';
+  ctx.strokeStyle = 'rgba(0,0,0,.7)'; ctx.lineWidth = bW + tile*0.07;
+  ctx.beginPath(); ctx.moveTo(cx + px*R*0.15, cy + py*R*0.15);
+  ctx.lineTo(cx + px*bLen, cy + py*bLen); ctx.stroke();
+  ctx.strokeStyle = me ? '#7a4a00' : '#16324d'; ctx.lineWidth = bW;
+  ctx.beginPath(); ctx.moveTo(cx + px*R*0.15, cy + py*R*0.15);
+  ctx.lineTo(cx + px*bLen, cy + py*bLen); ctx.stroke();
+  // 炮管高光
+  ctx.strokeStyle = 'rgba(255,255,255,.25)'; ctx.lineWidth = bW * 0.3;
+  ctx.beginPath(); ctx.moveTo(cx + px*(R*0.2 - py*bW*0.22), cy + py*(R*0.2 + px*bW*0.22));
+  ctx.lineTo(cx + px*(bLen - py*bW*0.22), cy + py*(bLen + px*bW*0.22)); ctx.stroke();
+  // 炮口帽
+  ctx.strokeStyle = '#fff'; ctx.lineWidth = bW * 0.5;
+  ctx.beginPath(); ctx.moveTo(cx + px*(bLen - R*0.14), cy + py*(bLen - R*0.14));
+  ctx.lineTo(cx + px*bLen, cy + py*bLen); ctx.stroke();
+  // 底盘（深色圆盘）
+  ctx.fillStyle = 'rgba(0,0,0,.4)';
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.98, 0, Math.PI*2); ctx.fill();
+  // 炮塔圆（渐变到深色实体边缘）
+  const g = ctx.createRadialGradient(cx - R*0.28, cy - R*0.28, R*0.1, cx, cy, R*0.96);
+  g.addColorStop(0, '#fff'); g.addColorStop(0.28, color);
+  g.addColorStop(1, me ? '#5d3a00' : '#0f2438');
+  ctx.fillStyle = g;
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.96, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.65)'; ctx.lineWidth = 2;
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.96, 0, Math.PI*2); ctx.stroke();
+  // 铆钉装饰环
+  ctx.strokeStyle = 'rgba(255,255,255,.4)'; ctx.lineWidth = 1.4;
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.78, 0, Math.PI*2); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.18)';
+  ctx.beginPath(); ctx.arc(cx, cy, R*0.56, 0, Math.PI*2); ctx.stroke();
+  // 等级
+  ctx.fillStyle = '#fff'; ctx.font = 'bold ' + tile * 0.5 + 'px sans-serif';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.shadowColor = 'rgba(0,0,0,.6)'; ctx.shadowBlur = 3;
+  ctx.fillText(t.lv, cx, cy);
+  ctx.shadowBlur = 0;
+  // 炮台血条
+  const bw = R * 2, bh = Math.max(0, t.hp / t.maxhp);
+  ctx.fillStyle = 'rgba(0,0,0,.55)'; ctx.fillRect(cx - bw/2, cy - R - 8, bw, 4);
+  ctx.fillStyle = '#7ed957'; ctx.fillRect(cx - bw/2, cy - R - 8, bw * bh, 4);
+}
+
+// 怪造型（按类型不同：小怪/尖刺中怪/核心精英/带角头目）
+function drawMonster(m, mx, my, r) {
+  const c = MON_COLOR[m.type], d = MON_DARK[m.type];
+  // 本体渐变（边缘到深色，实体清晰）
+  const mg = ctx.createRadialGradient(mx - r*0.35, my - r*0.35, r*0.1, mx, my, r);
+  mg.addColorStop(0, '#fff'); mg.addColorStop(0.3, c); mg.addColorStop(1, d);
+  ctx.fillStyle = mg;
+  ctx.beginPath(); ctx.arc(mx, my, r, 0, Math.PI*2); ctx.fill();
+  ctx.strokeStyle = 'rgba(0,0,0,.75)'; ctx.lineWidth = 1.8; ctx.stroke();
+  // 中怪：外圈 8 个尖刺
+  if (m.type === 1) {
+    ctx.fillStyle = d;
+    for (let k = 0; k < 8; k++) {
+      const a = k / 8 * Math.PI * 2 + Math.PI / 8;
+      ctx.beginPath();
+      ctx.moveTo(mx + Math.cos(a - 0.16) * r * 0.9, my + Math.sin(a - 0.16) * r * 0.9);
+      ctx.lineTo(mx + Math.cos(a) * r * 1.4, my + Math.sin(a) * r * 1.4);
+      ctx.lineTo(mx + Math.cos(a + 0.16) * r * 0.9, my + Math.sin(a + 0.16) * r * 0.9);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // 精英：内部发光核心
+  if (m.type === 2) {
+    const cg = ctx.createRadialGradient(mx, my, 0, mx, my, r * 0.6);
+    cg.addColorStop(0, 'rgba(255,255,255,.95)'); cg.addColorStop(1, 'rgba(255,255,255,.1)');
+    ctx.fillStyle = cg;
+    ctx.beginPath(); ctx.arc(mx, my, r * 0.6, 0, Math.PI*2); ctx.fill();
+  }
+  // 头目：头顶三个角
+  if (m.type === 3) {
+    ctx.fillStyle = d;
+    for (let k = -1; k <= 1; k++) {
+      const a = -Math.PI / 2 + k * 0.45;
+      ctx.beginPath();
+      ctx.moveTo(mx + Math.cos(a - 0.22) * r * 0.8, my + Math.sin(a - 0.22) * r * 0.8);
+      ctx.lineTo(mx + Math.cos(a) * r * 1.15, my + Math.sin(a) * r * 1.15 - r * 0.35);
+      ctx.lineTo(mx + Math.cos(a + 0.22) * r * 0.8, my + Math.sin(a + 0.22) * r * 0.8);
+      ctx.closePath(); ctx.fill();
+    }
+  }
+  // 眼睛（精英有核心发光，不画眼睛）
+  if (m.type !== 2) {
+    const er = Math.max(1.3, r * 0.15);
+    const ex = r * 0.38, ey = r * 0.28;
+    ctx.fillStyle = '#181818';
+    ctx.beginPath(); ctx.arc(mx - ex, my + ey, er, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + ex, my + ey, er, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = '#fff';
+    ctx.beginPath(); ctx.arc(mx - ex - er*0.3, my + ey - er*0.35, er*0.42, 0, Math.PI*2); ctx.fill();
+    ctx.beginPath(); ctx.arc(mx + ex - er*0.3, my + ey - er*0.35, er*0.42, 0, Math.PI*2); ctx.fill();
+  }
+}
+
+// ---------- 输入：移动（只左右；服务器 tick 持续移动，前端只在方向变化时发一次） ----------
+function sendMove() {
+  const dx = ((keys.right || padKeys.right) ? 1 : 0) - ((keys.left || padKeys.left) ? 1 : 0);
+  send('GUN|move|' + dx + '|0');
+}
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') { keys.left = true; e.preventDefault(); sendMove(); }
+  else if (k === 'arrowright' || k === 'd') { keys.right = true; e.preventDefault(); sendMove(); }
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowleft' || k === 'a') { keys.left = false; sendMove(); }
+  else if (k === 'arrowright' || k === 'd') { keys.right = false; sendMove(); }
+});
+document.querySelectorAll('#pad button[data-dx]').forEach(btn => {
+  const dx = +btn.dataset.dx;
+  const set = (on) => {
+    if (dx === -1) padKeys.left = on; if (dx === 1) padKeys.right = on;
+    sendMove();
+  };
+  btn.addEventListener('touchstart', e => { e.preventDefault(); set(true); });
+  btn.addEventListener('touchend', e => { e.preventDefault(); set(false); });
+  btn.addEventListener('touchcancel', e => { set(false); });
+  btn.addEventListener('mousedown', e => { set(true); });
+  btn.addEventListener('mouseup', e => { set(false); });
+  btn.addEventListener('mouseleave', e => { set(false); });
+});
+
+// ---------- 开火模式切换 ----------
+let fireMode = 0;   // 0 自动 1 手动
+function setModeUI() {
+  const b = $('bMode');
+  b.textContent = fireMode === 0 ? '⚙️ 自动开火' : '🎯 瞄准开火';
+  b.title = fireMode === 0 ? '自动连射，角度自己控制' : '按住发射键才开火';
+  b.classList.toggle('on', fireMode === 1);
+  $('bFire').disabled = fireMode !== 1;
+}
+$('bMode').onclick = () => {
+  fireMode = fireMode === 0 ? 1 : 0;
+  send('GUN|mode|' + fireMode);
+  setModeUI();
+};
+
+// ---------- 发射（手动模式按住连射） ----------
+const bFire = $('bFire');
+let firing = false, fireTimer = null;
+function startFire() {
+  if (fireMode !== 1) return;
+  firing = true; bFire.classList.add('hold');
+  send('GUN|fire');       // 服务器置 firing=1，tick 自动持续射
+}
+function stopFire() {
+  firing = false; bFire.classList.remove('hold');
+  send('GUN|fireoff');    // 服务器置 firing=0
+}
+bFire.addEventListener('touchstart', e => { e.preventDefault(); startFire(); });
+bFire.addEventListener('touchend', e => { e.preventDefault(); stopFire(); });
+bFire.addEventListener('touchcancel', e => { stopFire(); });
+bFire.addEventListener('mousedown', e => { startFire(); });
+bFire.addEventListener('mouseup', e => { stopFire(); });
+bFire.addEventListener('mouseleave', e => { stopFire(); });
+
+// ---------- 暂停 ----------
+$('bPause').onclick = () => {
+  const open = $('pz').classList.contains('open');
+  if (open) {
+    $('pz').classList.remove('open');
+    send('GUN|pause|0');
+    $('bPause').textContent = '⏸ 暂停';
+  } else {
+    $('pz').classList.add('open');
+    send('GUN|pause|1');
+    $('bPause').textContent = '▶ 继续';
+  }
+};
+$('pz').onclick = () => {
+  $('pz').classList.remove('open');
+  send('GUN|pause|0');
+  $('bPause').textContent = '⏸ 暂停';
+};
+
+// ---------- 输入：瞄准 + 发射（合一手势） ----------
+// 桌面：按住 canvas 拖动 = 瞄准 + 手动模式持续开火
+cv.addEventListener('mousedown', e => {
+  mouseDown = true; mouseAimX = e.offsetX; mouseAimY = e.offsetY;
+  updateMouseAim();
+  if (fireMode === 1) startFire();
+});
+window.addEventListener('mousemove', e => { if (mouseDown) updateMouseAimFrom(e); });
+window.addEventListener('mouseup', () => {
+  mouseDown = false;
+  if (fireMode === 1) stopFire();
+});
+function updateMouseAimFrom(e) {
+  const r = cv.getBoundingClientRect();
+  mouseAimX = e.clientX - r.left; mouseAimY = e.clientY - r.top;
+  updateMouseAim();
+}
+function updateMouseAim() {
+  if (!st || !st.turrets[0]) return;
+  const rect = cv.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  const tile = Math.min(w / W, h / H);
+  const ox = (w - tile * W) / 2, oy = (h - tile * H) / 2;
+  const t = st.turrets[0];
+  const sx = ox + t.x * tile, sy = oy + t.y * tile;
+  const ang = Math.atan2(mouseAimY - sy, mouseAimX - sx);
+  setAngle(ang);
+}
+// 触屏：右下角圆盘 = 按住即瞄准方向 + 手动模式持续开火，滑动调角度
+const aimEl = $('aim'), knob = $('aimKnob');
+const isTouch = ('ontouchstart' in window);
+if (isTouch) aimEl.classList.add('on');
+function computeAim(clientX, clientY) {
+  const r = aimEl.getBoundingClientRect();
+  const cx = r.left + r.width/2, cy = r.top + r.height/2;
+  const dx = clientX - cx, dy = clientY - cy;
+  const len = Math.hypot(dx, dy), max = r.width/2 - 8;
+  const cl = Math.min(len, max);
+  knob.style.transform = 'translate(' + (dx/max*cl) + 'px,' + (dy/max*cl) + 'px)';
+  setAngle(Math.atan2(dy, dx));
+}
+aimEl.addEventListener('touchstart', e => {
+  e.preventDefault();
+  const t = e.targetTouches[0] || e.touches[0];
+  if (!t) return;
+  aimTouchId = t.identifier;
+  touchAim = true; aimActive = true;
+  computeAim(t.clientX, t.clientY);
+  if (fireMode === 1) startFire();
+});
+window.addEventListener('touchmove', e => {
+  if (!touchAim) return;
+  e.preventDefault();
+  let t = null;
+  for (const tt of e.touches) if (tt.identifier === aimTouchId) { t = tt; break; }
+  if (!t) t = e.touches[0];
+  if (t) computeAim(t.clientX, t.clientY);
+});
+window.addEventListener('touchend', e => {
+  if (!touchAim) return;
+  if (e.touches.length === 0) {
+    touchAim = false; aimActive = false; aimTouchId = null;
+    knob.style.transform = 'translate(0,0)';
+    if (fireMode === 1) stopFire();
+  }
+});
+function setAngle(a) {
+  aimAngle = a;
+  send('GUN|angle|' + a.toFixed(3));
+}
+
+// ---------- 升级三选一 ----------
+function showUpgrade() {
+  if (!st) return;
+  const c = myChoice();
+  if (!c || !c[0]) return;
+  // 升级冻结超时兜底：服务器 30 秒未收到选择会自动随机选，这里显示倒计时
+  try { if (upgradeTmr) clearInterval(upgradeTmr); } catch(e) {}
+  upDeadline = Date.now() + 30000;
+  upgradeTmr = setInterval(() => {
+    if (!$('lv').classList.contains('open')) { clearInterval(upgradeTmr); upgradeTmr = null; return; }
+    const el = $('lvTmr');
+    if (el) {
+      const remain = Math.max(0, Math.round((upDeadline - Date.now()) / 1000));
+      el.textContent = remain > 0 ? ('⏱ 剩余 ' + remain + ' 秒自动选择加成') : '⏱ 自动选择中…';
+    }
+  }, 500);
+  const box = $('lvOpts'); box.innerHTML = '';
+  for (let i = 0; i < 3; i++) {
+    const b = c[i + 1];
+    const d = document.createElement('div'); d.className = 'opt';
+    d.innerHTML = '<div class="n">' + BUFF_ICON[b] + ' ' + BUFF_NAME(b) + '</div><div class="d">' + BUFF_DESC[b] + '</div>';
+    d.onclick = () => {
+      send('GUN|choice|' + i);
+      // 本地立即清除 pending，防止服务器 state 未更新前弹窗重弹（"要点两次"）
+      if (st && st.choices && st.choices[myIdx()]) st.choices[myIdx()][0] = 0;
+      $('lv').classList.remove('open');
+      $('upBanner').classList.remove('on');
+      if (upgradeTmr) { clearInterval(upgradeTmr); upgradeTmr = null; }
+    };
+    box.appendChild(d);
+  }
+  $('lv').classList.add('open');
+}
+function BUFF_NAME(b) {
+  const n = ['伤害+','攻速+','穿透+','减速','点燃','中毒','散射+','护盾','弹夹+'];
+  return n[b] || '?';
+}
+
+// ---------- 结算 ----------
+function endGame(res) {
+  over = true;
+  const box = $('overBox');
+  box.className = 'box ' + (res === 1 ? 'win' : 'lose');
+  $('overT').textContent = res === 1 ? '🎉 胜利！' : '💀 失败';
+  let p = '';
+  if (st) {
+    p += '坚持到第 ' + st.wave[0] + '/' + st.wave[1] + ' 波';
+    p += ' · 漏怪 ' + st.wave[2] + '/' + st.wave[3];
+    p += ' · 等级 ' + (myTurret() ? myTurret().lv : 0);
+  }
+  $('overP').textContent = p;
+  $('over').classList.add('open');
+}
+
+// ---------- 主循环 ----------
+let lastUp = 0;
+let upgradeTmr = null;
+let upDeadline = 0;   // 升级弹窗倒计时截止时间戳
+function anyPending() {
+  if (!st || !st.choices) return false;
+  for (let i = 0; i < st.choices.length; i++)
+    if (st.choices[i] && st.choices[i][0]) return true;
+  return false;
+}
+// 升级暂停横幅：区分"自己升级"（应弹三选一）和"队友升级"（等待队友选择，避免"什么都没有"的困惑）
+function updateBanner() {
+  if (!st || !st.choices) { $('upBanner').classList.remove('on'); return; }
+  const mine = !!(myChoice() && myChoice()[0]);
+  const anyP = anyPending();
+  if (mine) {
+    $('upBanner').textContent = '🎁 升级！请选择你的加成';
+    $('upBanner').classList.add('on');   // 弹窗正常时弹窗盖住此横幅，无碍；弹窗异常时兜底提示
+  } else if (anyP) {
+    $('upBanner').textContent = '👥 队友正在选择加成，游戏继续中…';
+    $('upBanner').classList.add('on');
+  } else {
+    $('upBanner').classList.remove('on');
+  }
+}
+function loop(ts) {
+  draw(ts);   // 60fps 持续渲染（内部对炮台/怪做插值平滑）
+  // 检查升级弹窗
+  if (st) {
+    const c = myChoice();
+    if (c && c[0] && !$('lv').classList.contains('open')) showUpgrade();
+    updateBanner();
+  }
+  requestAnimationFrame(loop);
+}
+requestAnimationFrame(loop);
+
+function backToChat() { send('GUN|quit'); if (mode === 'pvp') send('GUN|leave'); location.href = 'chat.html'; }
+$('bBack').onclick = () => { if (confirm('退出本局？')) backToChat(); };
+$('bAgain').onclick = () => {
+  if (mode === 'pvp') {
+    send('GUN|ready');                       // 一局结束后：准备再来一局
+    $('over').classList.remove('open');
+    $('pvpPanel').style.display = 'flex';
+    $('roomWait').style.display = 'block';
+    rwRa = rwRole === 'a' ? 1 : rwRa; rwRb = rwRole === 'b' ? 1 : rwRb;
+    updateReady();
+    $('rwState').textContent = '✅ 已准备，等待对方…';
+  } else {
+    send('GUN|new');
+  }
+};
+$('bQuit').onclick = () => backToChat();
+$('overClose').onclick = () => backToChat();
+$('diffClose').onclick = () => backToChat();
+// ---- 联机面板 ----
+function showPvpPanel() {
+  $('pvpPanel').style.display = 'flex';
+  $('roomWait').style.display = 'none';
+  $('pvpCreate').style.display = '';
+  $('pvpJoin').style.display = '';
+}
+function roomWaitShow() {
+  $('pvpPanel').style.display = 'flex';
+  $('pvpCreate').style.display = 'none';
+  $('pvpJoin').style.display = 'none';
+  $('roomWait').style.display = 'block';
+  $('rwCode').textContent = roomCode;
+  updateReady();
+}
+function updateReady() {
+  const mine = rwRole === 'a' ? rwRa : rwRb;
+  const other = rwRole === 'a' ? rwRb : rwRa;
+  $('rwState').textContent = (mine ? '✅ 我：已准备' : '⏳ 我：未准备') + '  ｜  ' + (other ? '✅ 对方：已准备' : '⏳ 对方：未准备');
+  $('bReady').classList.toggle('on', mine === 1);
+  $('bReady').textContent = mine ? '✅ 已准备' : '✅ 准备';
+}
+$('menuClose').onclick = () => backToChat();
+$('bSolo').onclick = () => { mode = 'solo'; $('menu').style.display = 'none'; $('diffSel').style.display = 'flex'; };
+$('diffSel').addEventListener('click', e => { if (e.target === $('diffSel')) { mode=''; $('diffSel').style.display='none'; $('menu').style.display='flex'; } });
+$('bPvp').onclick = () => { mode = 'pvp'; $('menu').style.display = 'none'; showPvpPanel(); };
+$('pvpClose').onclick = () => {
+  send('GUN|quit');
+  if (mode === 'pvp' && roomCode) send('GUN|leave');   // 服务端保留房间，链接仍有效
+  location.href = 'chat.html';
+};
+document.querySelectorAll('#pvpCreate .opt').forEach(o => {
+  o.onclick = () => { send('GUN|create|' + o.dataset.d); };
+});
+$('bJoin').onclick = () => {
+  const c = $('iJoin').value.trim().toUpperCase();
+  if (!c) return;
+  send('GUN|join|' + c);
+};
+$('iJoin').onkeydown = e => { if (e.key === 'Enter') $('bJoin').click(); };
+$('bReady').onclick = () => send('GUN|ready');
+$('bInvite').onclick = () => {
+  if (!roomCode) return;
+  const link = location.origin + '/gun.html?room=' + roomCode;
+  send('【游戏邀请】🎯 枪战肉鸽房间 ' + roomCode + '，点链接进入对局：' + link);
+  addNotice('📨 邀请已发送到聊天室！离开本页房间也会保留，好友随时可加入');
+};
+$('bLeaveRoom').onclick = () => {
+  send('GUN|leave'); mode = ''; roomCode = '';
+  $('pvpPanel').style.display = 'none'; $('menu').style.display = 'flex';
+  addNotice('已离开房间（房间保留，好友仍可点链接加入）');
+};
+// 升级弹窗 ✕ = 跳过选择（随机选一个 buff，避免服务器冻结）
+$('lvClose').onclick = () => {
+  if (!st) return;
+  const c = myChoice();
+  if (c && c[0]) {
+    const i = 1 + Math.floor(Math.random() * 3);   // 1..3
+    send('GUN|choice|' + (i - 1));
+    if (st && st.choices && st.choices[myIdx()]) st.choices[myIdx()][0] = 0;
+    $('lv').classList.remove('open');
+    $('upBanner').classList.remove('on');
+    if (upgradeTmr) { clearInterval(upgradeTmr); upgradeTmr = null; }
+  }
+};
+
+// 页面加载
+window.addEventListener('load', () => {
+  sizeCanvas();
+  connect();
+  setModeUI();
+  document.querySelectorAll('#diffSel .opt').forEach(o => {
+    o.onclick = () => {
+      send('GUN|new|' + o.dataset.d);
+      $('diffSel').style.display = 'none';
+    };
+    $('diffSel').addEventListener('click', e => { if (e.target === $('diffSel')) { mode=''; $('diffSel').style.display='none'; $('menu').style.display='flex'; } });
+  });
+  const autoRoom = new URLSearchParams(location.search).get('room') || '';
+  if (autoRoom) {
+    // 聊天室邀请点进来 → 自动加入联机房间（join 由 send 缓冲保证不丢）
+    mode = 'pvp'; roomCode = autoRoom;
+    showPvpPanel();
+    addNotice('正在进入房间 ' + autoRoom + ' …');
+    send('GUN|join|' + autoRoom);
+  } else {
+    $('menu').style.display = 'flex';   // 主菜单
+  }
+  setInterval(() => {
+    if (st) {
+      const c = myChoice();
+      if (c && c[0] && !$('lv').classList.contains('open')) showUpgrade();
+      updateBanner();
+    }
+  }, 300);
+});
+</script>
+</body>
+</html>

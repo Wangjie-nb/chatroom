@@ -1,0 +1,882 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>🐻 坦克大战</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0 }
+  html, body { height: 100% }
+  body {
+    font-family: "Comic Sans MS", "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: linear-gradient(180deg, #a8d8a0 0%, #d4edda 30%, #fff8e1 70%, #ffe0b2 100%);
+    color: #5d4037; display: flex; flex-direction: column; align-items: center;
+    height: 100dvh; max-height: 100dvh; overflow: hidden; width: 100%;
+  }
+  header {
+    width: 100%; display: flex; align-items: center; gap: .4rem;
+    background: linear-gradient(135deg, #3e2723, #6d4c41 55%, #8d6e63);
+    color: #fff; padding: .45rem .7rem;
+    box-shadow: 0 3px 12px rgba(38,24,20,.45);
+    border-bottom: 3px solid #2b1a15;
+  }
+  header button {
+    border: 1px solid rgba(255,255,255,.3); border-radius: 999px; padding: .3rem .7rem; font-size: .8rem;
+    background: linear-gradient(135deg, rgba(255,255,255,.25), rgba(255,255,255,.1)); color: #fff; cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,.25); font-weight: 600;
+  }
+  header button:active { transform: translateY(1px); box-shadow: none }
+  header h1 { flex: 1; font-size: 1rem; text-align: center; font-weight: 700 }
+  header .st { font-size: .72rem; opacity: .9 }
+  #modeBar { width: 100%; display: flex; gap: .4rem; padding: .36rem .9rem }
+  #modeBar button {
+    flex: 1; border: 2px solid rgba(255,224,178,.9); border-radius: 999px; padding: .3rem 0;
+    font-size: .88rem; font-weight: 700; cursor: pointer; background: linear-gradient(135deg, #fffdf7, #fff3e0); color: #8d6e63;
+    box-shadow: 0 1px 4px rgba(0,0,0,.08); transition: all .15s;
+  }
+  #modeBar button.on { background: linear-gradient(135deg, #ff9800, #ffb74d); color: #fff; border-color: #f57c00; box-shadow: 0 2px 8px rgba(255,152,0,.45) }
+  #stats { width: 100%; display: flex; justify-content: space-between; align-items: center; padding: .2rem .9rem; font-size: .85rem; color: #6d4c41 }
+  #stats span { background: rgba(255,248,225,.85); border: 1.5px solid rgba(255,224,178,.9); padding: .14rem .7rem; border-radius: 999px; box-shadow: 0 1px 3px rgba(0,0,0,.06); font-weight: 600 }
+  #stats b { color: #e65100 }
+  .hint { font-size: .72rem; color: #8d6e63; text-align: center; padding: .14rem .6rem; background: rgba(255,248,225,.5) }
+  #wrap { flex: 1; min-height: 0; width: 100%; padding: .4rem; display: flex; align-items: center; justify-content: center }
+  #board {
+    position: relative; background: #8bc34a; border-radius: 14px; overflow: hidden;
+    box-shadow: 0 8px 26px rgba(0,0,0,.4), inset 0 0 0 4px #4e342e, inset 0 0 0 6px #8d6e63;
+  }
+  canvas { display: block; width: 100%; height: 100% }
+  #bStartIn {
+    position: absolute; top: 50%; left: 50%; transform: translate(-50%,-50%);
+    border: 3px solid #f57c00; cursor: pointer; padding: .8rem 2rem; font-size: 1.1rem;
+    border-radius: 999px; font-weight: 700; color: #fff; z-index: 6; display: none;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+  }
+  #pvpStats { width: 100%; display: none; justify-content: space-between; align-items: center; padding: .15rem .9rem; font-size: .85rem }
+  #pvpStats .a { color: #e65100; font-weight: 700 }
+  #pvpStats .b { color: #1565c0; font-weight: 700 }
+  #pvpStats .mid { color: #8d6e63; font-size: .8rem }
+  #pvpPanel {
+    position: fixed; left: 50%; top: 50%; transform: translate(-50%,-50%);
+    z-index: 90; width: min(92vw, 430px); max-height: 82vh; overflow-y: auto;
+    box-sizing: border-box; padding: .8rem 1rem; display: none; flex-direction: column; gap: .5rem;
+    background: linear-gradient(165deg, #fffdf4, #ffe8c8);
+    border: 3px solid #6d4c41; border-radius: 18px;
+    box-shadow: 0 14px 40px rgba(0,0,0,.45), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  #pvpPanel .row { display: flex; gap: .5rem; align-items: center; justify-content: center }
+  #pvpPanel input {
+    flex: 1; border: 2px solid #ffe0b2; border-radius: 12px; padding: .4rem .6rem;
+    font-size: .9rem; background: #fffaf0; color: #5d4037; outline: none; text-align: center;
+    letter-spacing: .15em; min-width: 0;
+  }
+  #pvpPanel button {
+    border: none; cursor: pointer; padding: .45rem .9rem; font-size: .85rem; font-weight: 700;
+    border-radius: 12px; color: #fff; white-space: nowrap;
+    background: linear-gradient(135deg, #8d6e63, #a1887f);
+  }
+  #pvpPanel button.g { background: #fff3e0; color: #8d6e63; border: 2px solid #ffe0b2 }
+  #roomWait { display: none; flex-direction: column; gap: .4rem; padding: .1rem 0 }
+  #roomWait .row { display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap }
+  #roomWait button { flex: 1; min-width: 110px }
+  #bReady.on { background: linear-gradient(135deg, #66bb6a, #81c784) !important; color: #fff !important }
+  #ctrl {
+    flex: none; width: 100%; display: flex; align-items: center; justify-content: space-between;
+    padding: .4rem .8rem .6rem; gap: .8rem; box-sizing: border-box;
+    background: rgba(255,248,225,.92); border-top: 2px dashed #d7ccc8;
+  }
+  #dpad { display: grid; grid-template-columns: repeat(3, 50px); grid-template-rows: repeat(3, 50px); gap: 3px }
+  #dpad .d {
+    width: 50px; height: 50px; border-radius: 12px; border: 2px solid rgba(255,224,178,.95);
+    background: linear-gradient(160deg, #fffdf7, #ffe0b2); color: #e65100;
+    font-size: 1.05rem; font-weight: 700; cursor: pointer;
+    -webkit-user-select: none; user-select: none; touch-action: none;
+    box-shadow: 0 2px 5px rgba(0,0,0,.12), inset 0 1px 0 rgba(255,255,255,.8);
+  }
+  #dpad .d:active { background: linear-gradient(160deg, #ffb74d, #ff9800); color: #fff; box-shadow: inset 0 2px 5px rgba(0,0,0,.25) }
+  #dpad .drow { display: contents }
+  #dpad .dmid { visibility: hidden }
+  #shootWrap { display: flex; flex-direction: column; align-items: center; gap: .3rem }
+  #shootWrap .sl { font-size: .72rem; color: #8d6e63; font-weight: 700; text-align: center; line-height: 1.2 }
+  #bShoot {
+    width: 86px; height: 86px; border-radius: 50%; border: 4px solid #8e2b22;
+    font-size: 1.7rem; cursor: pointer; color: #fff; line-height: 1; font-weight: 700;
+    background: radial-gradient(circle at 35% 30%, #ff8a65, #e53935 60%, #b71c1c);
+    box-shadow: 0 6px 18px rgba(229,57,53,.55), inset 0 2px 6px rgba(255,255,255,.35);
+    -webkit-user-select: none; user-select: none; touch-action: none;
+  }
+  #bShoot:active { transform: scale(.92) }
+  #mask {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    align-items: center; justify-content: center; background: rgba(0,0,0,.5);
+  }
+  #mask.open { display: flex }
+  #panel {
+    background: linear-gradient(165deg, #fffdf4, #ffe8c8); border: 4px solid #6d4c41;
+    border-radius: 18px; padding: 1.2rem 1.5rem; text-align: center; width: min(90vw, 340px);
+    position: relative; box-shadow: 0 16px 44px rgba(0,0,0,.5), inset 0 1px 0 rgba(255,255,255,.9);
+  }
+  #bClose {
+    position: absolute; top: .4rem; right: .5rem; border: none; background: none;
+    font-size: 1.1rem; cursor: pointer; color: #8d6e63;
+  }
+  #panel h2 { color: #e65100; margin-bottom: .5rem }
+  #panel .sc { color: #6d4c41; margin-bottom: 1rem; font-size: .95rem }
+  #panel .btns { display: flex; gap: .5rem; justify-content: center }
+  #panel .btns button {
+    border: none; cursor: pointer; padding: .6rem 1.4rem; font-size: .95rem; font-weight: 700;
+    border-radius: 999px; color: #fff; background: linear-gradient(135deg, #ff9800, #ffb74d);
+    box-shadow: 0 3px 10px rgba(255,152,0,.4); transition: all .15s;
+  }
+  #panel .btns button:active { transform: translateY(1px); box-shadow: none }
+  #panel .btns button.g { background: linear-gradient(135deg, #6d4c41, #8d6e63); box-shadow: 0 3px 10px rgba(109,76,65,.4) }
+  .tip { display: none }
+</style>
+</head>
+<body>
+  <header>
+    <button id="bBack">← 返回</button>
+    <h1>🚗 坦克大战</h1>
+    <span class="st" id="st">连接中</span>
+  </header>
+  <div id="modeBar">
+    <button id="mSolo" class="on">🎮 单人</button>
+    <button id="mPvp">🤝 联机对战</button>
+  </div>
+  <div id="stats">
+    <span>🏆 得分 <b id="score">0</b></span>
+    <span>💖 生命 <b id="lives">3</b></span>
+  </div>
+  <div class="hint" id="soloHint">电脑：方向键/WASD 移动 · 空格射击</div>
+  <div id="pvpPanel">
+    <div class="row">
+      <button id="bCreate">🎮 创建房间</button>
+      <input id="iJoin" placeholder="输入房间码" maxlength="6">
+      <button id="bJoin" class="g">加入</button>
+    </div>
+    <div class="row" style="font-size:.8rem;color:#8d6e63;justify-content:flex-start;gap:.4rem;flex-wrap:wrap">
+      <span>地图</span>
+      <select id="sSize" style="padding:.3rem .4rem;border:2px solid #ffe0b2;border-radius:10px;background:#fffaf0;color:#5d4037;font-size:.82rem">
+        <option value="16">小 16</option>
+        <option value="20">中 20</option>
+        <option value="24" selected>大 24</option>
+        <option value="28">超大 28</option>
+      </select>
+      <span>命数</span>
+      <select id="sLives" style="padding:.3rem .4rem;border:2px solid #ffe0b2;border-radius:10px;background:#fffaf0;color:#5d4037;font-size:.82rem">
+        <option value="1">1</option>
+        <option value="3" selected>3</option>
+        <option value="5">5</option>
+        <option value="7">7</option>
+        <option value="9">9</option>
+      </select>
+    </div>
+    <div id="roomWait">
+      <div style="text-align:center">房间 <b id="rwCode" style="color:#ff9800;font-size:1.3rem;letter-spacing:.2em"></b></div>
+      <div id="rwState" style="text-align:center;color:#8d6e63;font-size:.9rem;margin:.3rem 0">等待对方加入…</div>
+      <div class="row">
+        <button id="bReady">✅ 准备</button>
+        <button id="bInvite" class="g">📨 发邀请到聊天室</button>
+        <button id="bLeaveRoom" class="g">🚪 退出</button>
+      </div>
+    </div>
+  </div>
+  <div id="pvpStats">
+    <span class="a">🟡 A <b id="la">3</b>命</span>
+    <span class="mid" id="roleTag">你：?</span>
+    <span class="b">🔵 B <b id="lb">3</b>命</span>
+  </div>
+  <div id="wrap">
+    <div id="board">
+      <canvas id="cv"></canvas>
+      <button id="bStartIn">🎮 开始游戏</button>
+    </div>
+  </div>
+  <div id="ctrl">
+    <div id="dpad">
+      <button class="d" data-dx="-1" data-dy="-1">↖</button>
+      <button class="d" data-dx="0" data-dy="-1">▲</button>
+      <button class="d" data-dx="1" data-dy="-1">↗</button>
+      <div class="drow">
+        <button class="d" data-dx="-1" data-dy="0">◀</button>
+        <span class="dmid"></span>
+        <button class="d" data-dx="1" data-dy="0">▶</button>
+      </div>
+      <button class="d" data-dx="-1" data-dy="1">↙</button>
+      <button class="d" data-dx="0" data-dy="1">▼</button>
+      <button class="d" data-dx="1" data-dy="1">↘</button>
+    </div>
+    <div id="shootWrap">
+      <button id="bShoot">🔫</button>
+      <span class="sl">射击</span>
+    </div>
+  </div>
+  <div class="tip" id="footTip"></div>
+  <div id="mask">
+    <div id="panel">
+      <button id="bClose">✕</button>
+      <h2 id="rTitle">🎮 游戏结束</h2>
+      <div class="sc" id="rMsg">-</div>
+      <div class="btns">
+        <button id="bRestart">🔄 再来一局</button>
+        <button id="bLeave" class="g" style="display:none">🚪 离开房间</button>
+      </div>
+    </div>
+  </div>
+<script>
+const $ = id => document.getElementById(id);
+const cv = $('cv'), ctx = cv.getContext('2d');
+const bg = document.createElement('canvas');   // 离屏地图底图（草地+墙体纹理预渲染）
+let lastBroken = '';
+const GRID = 24;   // 单机固定
+let curG = 24;      // 当前地图尺寸（双人可动态 16~32）
+let ws = null;
+let mode = 'solo';
+// 单机
+let map = [], score = 0, lives = 3, started = false, over = false;
+let player = null, enemies = [], bullets = [];
+// 双人
+let role = 0, roomCode = '', pvpMap = [], ta = null, tb = null, pBullets = [];
+let rwRole = 'a', rwRa = 0, rwRb = 0, la = 3, lb = 3;
+let pvpStarted = false, pvpEnded = false;
+let autoJoinRoom = new URLSearchParams(location.search).get('room') || '';
+let startedOnce = false;
+
+function fitBoard() {
+  const wrap = $('wrap');
+  const w = wrap.clientWidth - 8, h = wrap.clientHeight - 8;
+  const size = Math.max(100, Math.min(w, h, 600));
+  const b = $('board');
+  b.style.width = size + 'px'; b.style.height = size + 'px';
+}
+function resize() {
+  const r = cv.parentElement.getBoundingClientRect();
+  const dpr = window.devicePixelRatio || 1;
+  cv.width = r.width * dpr; cv.height = r.height * dpr;
+  cv.style.width = '100%'; cv.style.height = '100%';
+  ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath();
+  ctx.moveTo(x + r, y);
+  ctx.arcTo(x + w, y, x + w, y + h, r);
+  ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r);
+  ctx.arcTo(x, y, x + w, y, r);
+  ctx.closePath();
+}
+function applyMap(s) {
+  map = [];
+  curG = Math.round(Math.sqrt(s.length));
+  if (curG < 16 || curG > 32) curG = GRID;
+  for (let i = 0; i < s.length; i++) map.push(+s[i]);
+  lastBroken = '';
+  renderMapBg();
+}
+function applySolo(tanks, bulletsStr, sc, lv, broken) {
+  const parts = tanks.split(';');
+  player = parts[0] ? parts[0].split(',').map(Number) : null;
+  enemies = [];
+  for (let i = 1; i < parts.length; i++) if (parts[i]) enemies.push(parts[i].split(',').map(Number));
+  bullets = parseBullets(bulletsStr);
+  score = +sc; lives = +lv;
+  applyBroken(broken);
+  $('score').textContent = score;
+  $('lives').textContent = lives;
+  draw();
+}
+function parseBullets(s) {
+  const out = [];
+  if (!s) return out;
+  s.split(';').forEach(p => {
+    if (!p) return;
+    const q = p.split(',');
+    out.push({ x: +q[0], y: +q[1], dx: +q[2], dy: +q[3], owner: +q[4] });
+  });
+  return out;
+}
+function applyBroken(broken) {
+  if (!broken) return;
+  broken.split(';').forEach(p => {
+    if (!p) return;
+    const q = p.split(',');
+    const x = +q[0], y = +q[1];
+    if (x >= 0 && x < curG && y >= 0 && y < curG) map[y * curG + x] = 0;
+  });
+  if (broken !== lastBroken) { lastBroken = broken; renderMapBg(); }
+}
+function applyPvp(s) {
+  const p = s.split('|');
+  applyMap(p[0]);
+  ta = p[1] ? p[1].split(',').map(Number) : [2.5, 21.5, 2, 1, 1, 5, 0];
+  tb = p[2] ? p[2].split(',').map(Number) : [21.5, 2.5, 6, 1, 1, 5, 0];
+  role = +p[3];
+  $('roleTag').textContent = '你：' + (role === 1 ? '🟡 A' : '🔵 B');
+  la = +p[4] || 3; lb = +p[5] || 3;
+  $('la').textContent = la; $('lb').textContent = lb;
+  pvpStarted = true; pvpEnded = false;
+  $('bRestart').disabled = false; $('bRestart').style.opacity = '';
+  $('pvpPanel').style.display = 'none';
+  $('roomInfo') && ($('roomInfo').style.display = 'none');
+  $('roomWait').style.display = 'none';
+  $('pvpStats').style.display = 'flex';
+  $('stats').style.display = 'none';
+  $('mask').classList.remove('open');
+  draw();
+}
+function applyPvpState(s) {
+  const p = s.split('|');
+  const parseT = t => t ? t.split(',').map(Number) : null;
+  ta = parseT(p[0]); tb = parseT(p[1]);
+  pBullets = parseBullets(p[2]);
+  la = +p[3]; lb = +p[4];
+  applyBroken(p[5]);
+  $('la').textContent = la; $('lb').textContent = lb;
+  draw();
+}
+function draw() {
+  const rect = cv.parentElement.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  const tile = w / curG;
+  if (bg.width !== Math.max(2, Math.floor(w)) || bg.height !== Math.max(2, Math.floor(h))) renderMapBg();
+  ctx.clearRect(0, 0, w, h);
+  // 写实地图底图（草地+砖墙+钢墙纹理）
+  ctx.drawImage(bg, 0, 0, w, h);
+  // 子弹
+  pBullets.forEach(drawBullet);
+  if (mode === 'solo') bullets.forEach(drawBullet);
+  // 坦克
+  if (mode === 'solo') {
+    if (player && player[4] === 1) drawTank(player, '#f9a825', '#e65100', true);
+    enemies.forEach(e => { if (e[4] === 1) drawTank(e, '#42a5f5', '#1565c0', false); });
+  } else {
+    if (ta && ta[4] === 1) drawTank(ta, '#f9a825', '#e65100', role === 1);
+    if (tb && tb[4] === 1) drawTank(tb, '#42a5f5', '#1565c0', role === 2);
+  }
+}
+function drawBullet(b) {
+  const tile = cv.parentElement.getBoundingClientRect().width / curG;
+  const cx = b.x * tile, cy = b.y * tile;
+  const col = b.owner === 1 ? '#ffca28' : '#64b5f6';
+  ctx.save();
+  // 归一化运动方向
+  let vx = b.dx || 0, vy = b.dy || 0;
+  const vl = Math.hypot(vx, vy) || 1;
+  vx /= vl; vy /= vl;
+  // 拖尾：沿运动反方向渐隐多段线
+  ctx.lineCap = 'round';
+  ctx.strokeStyle = col;
+  const trail = tile * 0.6;
+  for (let i = 1; i <= 5; i++) {
+    const tt = trail * i / 5;
+    ctx.globalAlpha = 0.30 * (1 - i / 6);
+    ctx.lineWidth = tile * (0.22 - i * 0.032);
+    ctx.beginPath();
+    ctx.moveTo(cx - vx * tt * 0.6, cy - vy * tt * 0.6);
+    ctx.lineTo(cx - vx * tt, cy - vy * tt);
+    ctx.stroke();
+  }
+  // 弹头：大、发光
+  ctx.globalAlpha = 1;
+  ctx.shadowColor = col;
+  ctx.shadowBlur = 12;
+  ctx.fillStyle = col;
+  ctx.beginPath();
+  ctx.arc(cx, cy, tile * 0.24, 0, Math.PI * 2);
+  ctx.fill();
+  // 白芯
+  ctx.shadowBlur = 0;
+  ctx.fillStyle = '#fff';
+  ctx.beginPath();
+  ctx.arc(cx, cy, tile * 0.11, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.restore();
+}
+// ===== 写实地图渲染（离屏预渲染） =====
+function renderMapBg() {
+  const rect = cv.parentElement.getBoundingClientRect();
+  const w = rect.width, h = rect.height;
+  const tile = w / curG;
+  bg.width = Math.max(2, Math.floor(w));
+  bg.height = Math.max(2, Math.floor(h));
+  const g = bg.getContext('2d');
+  // 草地渐变地面
+  const grad = g.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, '#8bc34a');
+  grad.addColorStop(1, '#689f38');
+  g.fillStyle = grad;
+  g.fillRect(0, 0, w, h);
+  // 草斑纹理（稳定伪随机，避免每帧抖动）
+  for (let y = 0; y < curG; y++) for (let x = 0; x < curG; x++) {
+    const r1 = ((x * 73856093) ^ (y * 19349663)) >>> 0;
+    const px = x * tile + ((r1 % 7) / 7) * tile;
+    const py = y * tile + (((r1 >> 3) % 7) / 7) * tile;
+    if (r1 % 100 < 24) {
+      g.fillStyle = 'rgba(56,110,30,.28)';
+      g.beginPath(); g.ellipse(px, py, tile * 0.30, tile * 0.18, 0, 0, Math.PI * 2); g.fill();
+    } else if (r1 % 100 > 82) {
+      g.fillStyle = 'rgba(215,235,150,.30)';
+      g.beginPath(); g.ellipse(px, py, tile * 0.26, tile * 0.16, 0, 0, Math.PI * 2); g.fill();
+    }
+  }
+  // 战术网格线
+  g.strokeStyle = 'rgba(255,255,255,.08)';
+  g.lineWidth = 1;
+  for (let x = 1; x < curG; x++) { g.beginPath(); g.moveTo(x * tile, 0); g.lineTo(x * tile, h); g.stroke(); }
+  for (let y = 1; y < curG; y++) { g.beginPath(); g.moveTo(0, y * tile); g.lineTo(w, y * tile); g.stroke(); }
+  // 墙体纹理
+  for (let y = 0; y < curG; y++) for (let x = 0; x < curG; x++) {
+    const v = map[y * curG + x];
+    if (v === 1) drawBrick(g, x * tile, y * tile, tile);
+    else if (v === 2) drawSteel(g, x * tile, y * tile, tile);
+  }
+}
+// 砖墙（可破坏）：三层错缝砖
+function drawBrick(g, px, py, t) {
+  const gd = g.createLinearGradient(px, py, px, py + t);
+  gd.addColorStop(0, '#ee9340');
+  gd.addColorStop(0.5, '#d97a2e');
+  gd.addColorStop(1, '#b85c1c');
+  g.fillStyle = gd;
+  g.fillRect(px, py, t, t);
+  const rows = 3, rh = t / rows;
+  for (let r = 0; r < rows; r++) {
+    const off = (r % 2) ? t * 0.5 : 0;
+    const y0 = py + r * rh;
+    for (let c = -1; c < 2; c++) {
+      const x0 = px + c * t * 0.5 + off;
+      g.fillStyle = ((r + c) & 1) ? '#e0853a' : '#cf6f25';
+      g.fillRect(x0, y0, t * 0.5 - 0.8, rh - 1);
+    }
+  }
+  g.strokeStyle = 'rgba(110,50,10,.55)';
+  g.lineWidth = 1;
+  for (let r = 1; r < rows; r++) { g.beginPath(); g.moveTo(px, py + r * rh); g.lineTo(px + t, py + r * rh); g.stroke(); }
+  for (let r = 0; r < rows; r++) {
+    const off = (r % 2) ? t * 0.5 : 0;
+    const y0 = py + r * rh;
+    for (let c = 0; c < 2; c++) { g.beginPath(); g.moveTo(px + c * t * 0.5 + off, y0); g.lineTo(px + c * t * 0.5 + off, y0 + rh); g.stroke(); }
+  }
+  g.fillStyle = 'rgba(255,255,255,.16)';
+  g.fillRect(px, py, t, t * 0.1);
+  g.fillStyle = 'rgba(0,0,0,.16)';
+  g.fillRect(px, py + t * 0.92, t, t * 0.08);
+}
+// 钢墙（不可破坏）：金属板+铆钉+高光
+function drawSteel(g, px, py, t) {
+  const gd = g.createLinearGradient(px, py, px + t, py + t);
+  gd.addColorStop(0, '#d7dee2');
+  gd.addColorStop(0.5, '#9aa9b1');
+  gd.addColorStop(1, '#5f7079');
+  g.fillStyle = gd;
+  g.fillRect(px, py, t, t);
+  g.fillStyle = 'rgba(255,255,255,.4)';
+  g.fillRect(px, py, t, 2); g.fillRect(px, py, 2, t);
+  g.fillStyle = 'rgba(0,0,0,.28)';
+  g.fillRect(px, py + t - 2, t, 2); g.fillRect(px + t - 2, py, 2, t);
+  // 中缝
+  g.strokeStyle = 'rgba(0,0,0,.2)';
+  g.lineWidth = 1;
+  g.beginPath(); g.moveTo(px + t / 2, py + 3); g.lineTo(px + t / 2, py + t - 3); g.stroke();
+  // 四角铆钉
+  g.fillStyle = '#b0bec5';
+  const off = 3;
+  [[off, off], [t - off, off], [off, t - off], [t - off, t - off]].forEach(p => {
+    g.beginPath(); g.arc(px + p[0], py + p[1], 1.6, 0, Math.PI * 2); g.fill();
+  });
+  // 表面刮痕
+  g.strokeStyle = 'rgba(255,255,255,.18)';
+  g.beginPath(); g.moveTo(px + t * 0.2, py + t * 0.6); g.lineTo(px + t * 0.55, py + t * 0.4); g.stroke();
+  g.strokeStyle = 'rgba(0,0,0,.12)';
+  g.beginPath(); g.moveTo(px + t * 0.6, py + t * 0.75); g.lineTo(px + t * 0.9, py + t * 0.6); g.stroke();
+}
+// ===== 写实坦克 =====
+function drawTank(t, body, dark, me) {
+  const rect = cv.parentElement.getBoundingClientRect();
+  const tile = rect.width / curG;
+  const cx = t[0] * tile, cy = t[1] * tile;
+  const R = tile * 0.35;
+  const dirs = [[0, -1], [1, -1], [1, 0], [1, 1], [0, 1], [-1, 1], [-1, 0], [-1, -1]];
+  const d = dirs[t[2]];
+  const mx = d[0] === 0 ? 0 : d[0] / Math.SQRT2;
+  const my = d[1] === 0 ? 0 : d[1] / Math.SQRT2;
+  const S = tile * 0.33;       // 方形半边长（直边贴墙刚好接触，不穿模）
+  const corner = tile * 0.13;  // 圆角（四角圆润，1 格通道可走）
+  ctx.save();
+  // 地面投影
+  ctx.fillStyle = 'rgba(0,0,0,.28)';
+  ctx.beginPath();
+  ctx.ellipse(cx + tile * 0.05, cy + S * 0.7, S * 1.35, S * 0.6, 0, 0, Math.PI * 2);
+  ctx.fill();
+  // 车体：圆角方形（渐变立体感）
+  const grd = ctx.createLinearGradient(cx - S, cy - S, cx + S, cy + S);
+  grd.addColorStop(0, '#ffffff');
+  grd.addColorStop(0.22, body);
+  grd.addColorStop(1, dark);
+  ctx.fillStyle = grd;
+  ctx.strokeStyle = 'rgba(0,0,0,.42)';
+  ctx.lineWidth = 1.6;
+  roundRect(cx - S, cy - S, S * 2, S * 2, corner);
+  ctx.fill(); ctx.stroke();
+  // 履带：车体四边内缘深色履带条 + 浅色齿纹
+  ctx.fillStyle = '#263238';
+  const tbw = tile * 0.09;   // 履带宽
+  ctx.fillRect(cx - S + 2, cy - S + 2, S * 2 - 4, tbw);
+  ctx.fillRect(cx - S + 2, cy + S - 2 - tbw, S * 2 - 4, tbw);
+  ctx.fillRect(cx - S + 2, cy - S + 2, tbw, S * 2 - 4);
+  ctx.fillRect(cx + S - 2 - tbw, cy - S + 2, tbw, S * 2 - 4);
+  ctx.fillStyle = 'rgba(215,225,230,.85)';
+  const n = 6;
+  for (let i = 0; i < n; i++) {
+    const fx = cx - S + 3 + (i / (n - 1)) * (S * 2 - 6);
+    ctx.fillRect(fx, cy - S + 2, 2, tbw);
+    ctx.fillRect(fx, cy + S - 2 - tbw, 2, tbw);
+    const fy = cy - S + 3 + (i / (n - 1)) * (S * 2 - 6);
+    ctx.fillRect(cx - S + 2, fy, tbw, 2);
+    ctx.fillRect(cx + S - 2 - tbw, fy, tbw, 2);
+  }
+  // 车体顶部高光
+  ctx.fillStyle = 'rgba(255,255,255,.16)';
+  roundRect(cx - S + 3, cy - S + 3, S * 2 - 6, S * 0.3, corner); ctx.fill();
+  // 炮管：长、粗、明显（指向 8 方向）
+  const bx0 = cx + mx * R * 0.12, by0 = cy + my * R * 0.12;
+  const bx1 = cx + mx * R * 0.97, by1 = cy + my * R * 0.97;   // 炮管收到碰撞圆内，贴墙刚及墙、不戳进墙体
+  const px2 = -my, py2 = mx;
+  const w0 = tile * 0.09, w1 = tile * 0.058;
+  // 炮管描边（深色轮廓）
+  ctx.strokeStyle = 'rgba(0,0,0,.5)';
+  ctx.lineWidth = tile * 0.03;
+  ctx.beginPath();
+  ctx.moveTo(bx0 + px2 * (w0 + 1), by0 + py2 * (w0 + 1));
+  ctx.lineTo(bx1 + px2 * (w1 + 1), by1 + py2 * (w1 + 1));
+  ctx.moveTo(bx0 - px2 * (w0 + 1), by0 - py2 * (w0 + 1));
+  ctx.lineTo(bx1 - px2 * (w1 + 1), by1 - py2 * (w1 + 1));
+  ctx.stroke();
+  // 炮管主体（锥形）
+  ctx.fillStyle = dark;
+  ctx.beginPath();
+  ctx.moveTo(bx0 + px2 * w0, by0 + py2 * w0);
+  ctx.lineTo(bx0 - px2 * w0, by0 - py2 * w0);
+  ctx.lineTo(bx1 - px2 * w1, by1 - py2 * w1);
+  ctx.lineTo(bx1 + px2 * w1, by1 + py2 * w1);
+  ctx.closePath(); ctx.fill();
+  // 炮口白色帽（明显方向标）
+  ctx.strokeStyle = '#fff';
+  ctx.lineWidth = tile * 0.055;
+  ctx.lineCap = 'round';
+  ctx.beginPath();
+  ctx.moveTo(bx1 - px2 * w1, by1 - py2 * w1);
+  ctx.lineTo(bx1 + px2 * w1, by1 + py2 * w1);
+  ctx.stroke();
+  // 炮管中部高光
+  ctx.strokeStyle = 'rgba(255,255,255,.3)';
+  ctx.lineWidth = tile * 0.028;
+  ctx.beginPath();
+  ctx.moveTo(bx0 + px2 * w0 * 0.55, by0 + py2 * w0 * 0.55);
+  ctx.lineTo(bx1 + px2 * w1 * 0.55, by1 + py2 * w1 * 0.55);
+  ctx.stroke();
+  // 炮塔（中心圆，渐变）
+  const tg = ctx.createRadialGradient(cx - R * 0.1, cy - R * 0.12, R * 0.03, cx, cy, R * 0.42);
+  tg.addColorStop(0, '#ffffff');
+  tg.addColorStop(0.35, body);
+  tg.addColorStop(1, dark);
+  ctx.fillStyle = tg;
+  ctx.strokeStyle = 'rgba(0,0,0,.35)';
+  ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.arc(cx, cy, R * 0.42, 0, Math.PI * 2); ctx.fill(); ctx.stroke();
+  ctx.restore();
+  // 我方高亮（方形轮廓）
+  if (me) {
+    ctx.save();
+    ctx.strokeStyle = 'rgba(255,255,255,.9)'; ctx.lineWidth = 2.5;
+    roundRect(cx - S - 3, cy - S - 3, S * 2 + 6, S * 2 + 6, corner + 2); ctx.stroke();
+    ctx.restore();
+  }
+  // 弹药条（双方都显示；ammo/CLIP，换弹中变灰+提示）
+  ctx.save();
+  const CLIP = 5;
+  const ammo = t[5] !== undefined ? t[5] : CLIP;
+  const reload = t[6] || 0;
+  ctx.fillStyle = 'rgba(0,0,0,.5)';
+  roundRect(cx - S * 0.8, cy - S - 10, S * 1.6, 5, 2); ctx.fill();
+  ctx.fillStyle = reload > 0 ? '#90a4ae' : (ammo / CLIP > 0.5 ? '#66bb6a' : '#ff9800');
+  roundRect(cx - S * 0.8, cy - S - 10, S * 1.6 * (ammo / CLIP), 5, 2); ctx.fill();
+  if (reload > 0) {
+    ctx.fillStyle = 'rgba(0,0,0,.65)';
+    roundRect(cx - S * 0.9, cy - S - 22, S * 1.8, 10, 3); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = 'bold 9px sans-serif'; ctx.textAlign = 'center';
+    ctx.fillText('换弹中', cx, cy - S - 14);
+  }
+  ctx.restore();
+}
+// ===== WS =====
+function connect() {
+  const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+  ws = new WebSocket(proto + location.host + '/ws');
+  ws.onopen = () => {
+    $('st').textContent = '已连接';
+    const saved = localStorage.getItem('tn_pvp');
+    if (saved) {
+      try {
+        const ss = JSON.parse(saved);
+        setMode('pvp'); roomCode = ss.code;
+        send('TN|rejoin|' + ss.code + '|' + ss.role);
+      } catch (e) {
+        if (autoJoinRoom) { setMode('pvp'); roomCode = autoJoinRoom; send('TN|join|' + autoJoinRoom); }
+        else if (mode === 'solo') $('bStartIn').style.display = 'block';
+      }
+    } else if (autoJoinRoom) { setMode('pvp'); roomCode = autoJoinRoom; send('TN|join|' + autoJoinRoom); }
+    else if (mode === 'solo') $('bStartIn').style.display = 'block';
+  };
+  ws.onmessage = e => {
+    let d = e.data; d = d.replace(/\n$/, '');
+    if (d.indexOf('TN|init|') === 0) { const p = d.slice(8).split('|'); applyMap(p[0]); score = +p[1]; lives = +p[2]; started = true; over = false; $('score').textContent = score; $('lives').textContent = lives; draw(); }
+    else if (d.indexOf('TN|state|') === 0) { const p = d.slice(9).split('|'); applySolo(p[0], p[1], p[2], p[3], p[4]); }
+    else if (d.indexOf('TN|over|') === 0) { const p = d.slice(8).split('|'); soloOver(p[0], p[1]); }
+    else if (d.indexOf('TN|created|') === 0) { roomCode = d.slice(11); try { localStorage.setItem('tn_pvp', JSON.stringify({ code: roomCode, role: 1 })); } catch (e) {} roomWaitShow('a', 0, 0); }
+    else if (d.indexOf('TN|joined|') === 0) { const p = d.slice(10).split('|'); roomCode = p[0]; try { localStorage.setItem('tn_pvp', JSON.stringify({ code: roomCode, role: p[1] === 'a' ? 1 : 2 })); } catch (e) {} roomWaitShow(p[1], +p[2], +p[3]); }
+    else if (d.indexOf('TN|roomstate|') === 0) {
+      const p = d.slice(13).split('|');
+      updateReady(+p[0], +p[1]);
+      if (pvpEnded) {   // 结算弹窗中：同步对方准备状态
+        const other = role === 1 ? +p[1] : +p[0];
+        if (other) { $('rTitle').textContent = '🎮 对方已准备！'; $('rMsg').textContent = '正在开始新一局…'; }
+      }
+    }
+    else if (d.indexOf('TN|pinit|') === 0) { applyPvp(d.slice(9)); }
+    else if (d.indexOf('TN|pstate|') === 0) { applyPvpState(d.slice(10)); }
+    else if (d.indexOf('TN|pover|') === 0) { pvpOver(+d.slice(9)); }
+    else if (d.indexOf('TN|peer_left') === 0) { addNotice('对方已离开，等待重连…'); }
+    else if (d.indexOf('TN|left') === 0) { roomCode = ''; try { localStorage.removeItem('tn_pvp'); } catch (e) {} showPvpPanel(); }
+    else if (d.indexOf('TN|noroom') === 0) { addNotice('房间不存在'); try { localStorage.removeItem('tn_pvp'); } catch (e) {} }
+    else if (d.indexOf('TN|full') === 0) { addNotice('房间已满'); }
+    else if (d.indexOf('TN|err|') === 0) { addNotice(d.slice(7)); }
+  };
+  ws.onclose = () => { $('st').textContent = '已断开'; setTimeout(connect, 2000); };
+  ws.onerror = () => {};
+}
+function addNotice(t) { $('st').textContent = t; }
+function send(t) { if (ws && ws.readyState === 1) ws.send(t); }
+function soloOver(w, sc) {
+  started = false; over = true;
+  $('rTitle').textContent = w === 'win' ? '🏆 胜利！' : '💀 失败';
+  $('rMsg').textContent = (w === 'win' ? '消灭了全部敌人！' : '你的坦克被击毁') + ' ｜ 得分：' + sc;
+  $('bRestart').style.display = '';
+  $('bLeave').style.display = 'none';
+  $('mask').classList.add('open');
+}
+function pvpOver(result) {
+  pvpStarted = false; pvpEnded = true;
+  try { localStorage.removeItem('tn_pvp'); } catch (e) {}
+  if (result === 0) {
+    $('rTitle').textContent = '🤝 平局！';
+    $('rMsg').textContent = '双方坦克同时被击毁';
+  } else {
+    const myWin = (result === 1 && role === 1) || (result === 2 && role === 2);
+    $('rTitle').textContent = myWin ? '🏆 你赢啦！' : '💀 你输了';
+    $('rMsg').textContent = myWin ? '对方坦克被击毁' : '你的坦克被击毁';
+  }
+  $('bRestart').style.display = '';
+  $('bRestart').textContent = '🔄 准备再来一局';
+  $('bRestart').disabled = false;
+  $('bRestart').style.opacity = '';
+  $('bLeave').style.display = '';
+  $('mask').classList.add('open');
+}
+function showPvpPanel() {
+  pvpStarted = false; pvpEnded = false;
+  $('pvpPanel').style.display = 'flex';
+  $('roomWait').style.display = 'none';
+  $('pvpStats').style.display = 'none';
+  $('stats').style.display = '';
+  $('mask').classList.remove('open');
+}
+function roomWaitShow(myRole, ra, rb) {
+  rwRole = myRole; rwRa = ra; rwRb = rb;
+  $('pvpPanel').style.display = 'flex';
+  $('rwCode').textContent = roomCode;
+  $('roomWait').style.display = 'flex';
+  updateReady(ra, rb);
+}
+function updateReady(ra, rb) {
+  rwRa = ra; rwRb = rb;
+  const myRole = rwRole || (role === 1 ? 'a' : 'b');
+  const mine = myRole === 'a' ? ra : rb;
+  const other = myRole === 'a' ? rb : ra;
+  $('rwState').textContent = (mine ? '✅ 我：已准备' : '⏳ 我：未准备') + ' ｜ ' + (other ? '✅ 对方：已准备' : '⏳ 对方：未准备');
+  $('bReady').classList.toggle('on', mine === 1);
+  $('bReady').textContent = mine ? '✅ 已准备' : '✅ 准备';
+}
+// ===== 输入 =====
+function sendMove(dx, dy) {
+  if (mode === 'pvp') { if (!pvpStarted || pvpEnded) return; send('TN|pmove|' + dx + '|' + dy); }
+  else { if (!started || over) return; send('TN|move|' + dx + '|' + dy); }
+}
+function sendStop() {
+  if (mode === 'pvp') { if (!pvpStarted || pvpEnded) return; send('TN|pstop'); }
+  else { if (!started || over) return; send('TN|stop'); }
+}
+function sendShoot() {
+  if (mode === 'pvp') { if (!pvpStarted || pvpEnded) return; send('TN|pshoot'); }
+  else { if (!started || over) return; send('TN|shoot'); }
+}
+// 组合按键：同时按相邻两键可斜向移动（如 上+左），松键自动重算
+const dirKeys = { up: false, down: false, left: false, right: false };
+const btnKeys = { up: false, down: false, left: false, right: false };
+function calcMove() {
+  // 键盘(dirKeys)与触屏按钮(btnKeys)共同生效
+  const dx = ((dirKeys.right || btnKeys.right) ? 1 : 0) - ((dirKeys.left || btnKeys.left) ? 1 : 0);
+  const dy = ((dirKeys.down || btnKeys.down) ? 1 : 0) - ((dirKeys.up || btnKeys.up) ? 1 : 0);
+  if (dx || dy) sendMove(dx, dy); else sendStop();
+}
+document.addEventListener('keydown', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowup' || k === 'w') dirKeys.up = true;
+  else if (k === 'arrowdown' || k === 's') dirKeys.down = true;
+  else if (k === 'arrowleft' || k === 'a') dirKeys.left = true;
+  else if (k === 'arrowright' || k === 'd') dirKeys.right = true;
+  else { if (k === ' ') { e.preventDefault(); sendShoot(); } return; }
+  e.preventDefault(); calcMove();
+});
+document.addEventListener('keyup', e => {
+  const k = e.key.toLowerCase();
+  if (k === 'arrowup' || k === 'w') dirKeys.up = false;
+  else if (k === 'arrowdown' || k === 's') dirKeys.down = false;
+  else if (k === 'arrowleft' || k === 'a') dirKeys.left = false;
+  else if (k === 'arrowright' || k === 'd') dirKeys.right = false;
+  else return;
+  e.preventDefault(); calcMove();
+});
+// 底部方向键（按住移动、松开停止；同时按相邻两键可斜向）
+document.querySelectorAll('#dpad .d').forEach(btn => {
+  const on = () => {
+    const dx = +btn.dataset.dx, dy = +btn.dataset.dy;
+    if (dy === -1) btnKeys.up = true; else if (dy === 1) btnKeys.down = true;
+    if (dx === -1) btnKeys.left = true; else if (dx === 1) btnKeys.right = true;
+    calcMove();
+  };
+  const off = () => {
+    const dx = +btn.dataset.dx, dy = +btn.dataset.dy;
+    if (dy === -1) btnKeys.up = false; else if (dy === 1) btnKeys.down = false;
+    if (dx === -1) btnKeys.left = false; else if (dx === 1) btnKeys.right = false;
+    calcMove();
+  };
+  btn.addEventListener('touchstart', e => { e.preventDefault(); on(); }, { passive: false });
+  btn.addEventListener('touchend', e => { e.preventDefault(); off(); }, { passive: false });
+  btn.addEventListener('touchcancel', off);
+  btn.addEventListener('pointerdown', e => { e.preventDefault(); on(); });
+  btn.addEventListener('pointerup', off);
+  btn.addEventListener('pointerleave', off);
+});
+// 滑动跟随：按住后手指在方向键区滑动，方向随手的位置实时切换（无需松开重按）
+const dpadEl = $('dpad');
+let swipeActive = false;
+function swipeDir(px, py) {
+  const r = dpadEl.getBoundingClientRect();
+  const cx = r.left + r.width / 2, cy = r.top + r.height / 2;
+  const dx = px - cx, dy = py - cy;
+  const dead = Math.min(r.width, r.height) * 0.16;   // 中心死区：手指回到中心附近即停止
+  let vx = 0, vy = 0;
+  if (Math.abs(dx) > dead || Math.abs(dy) > dead) {
+    if (Math.abs(dx) > Math.abs(dy) * 0.35) vx = dx > 0 ? 1 : -1;
+    if (Math.abs(dy) > Math.abs(dx) * 0.35) vy = dy > 0 ? 1 : -1;
+  }
+  return { vx, vy };
+}
+function swipeApply(px, py) {
+  const { vx, vy } = swipeDir(px, py);
+  btnKeys.up = vy < 0; btnKeys.down = vy > 0;
+  btnKeys.left = vx < 0; btnKeys.right = vx > 0;
+  calcMove();
+}
+dpadEl.addEventListener('touchstart', () => { swipeActive = true; }, { passive: true });
+dpadEl.addEventListener('touchmove', e => {
+  if (!swipeActive || !e.touches.length) return;
+  e.preventDefault();
+  swipeApply(e.touches[0].clientX, e.touches[0].clientY);
+}, { passive: false });
+const swipeStop = () => {
+  swipeActive = false;
+  btnKeys.up = btnKeys.down = btnKeys.left = btnKeys.right = false;
+  calcMove();
+};
+dpadEl.addEventListener('touchend', swipeStop);
+dpadEl.addEventListener('touchcancel', swipeStop);
+// 射击按钮
+const bShoot = $('bShoot');
+bShoot.addEventListener('touchstart', e => { e.preventDefault(); sendShoot(); }, { passive: false });
+bShoot.addEventListener('pointerdown', e => { e.preventDefault(); sendShoot(); });
+// ===== 模式 =====
+function setMode(m) {
+  mode = m;
+  $('mSolo').classList.toggle('on', m === 'solo');
+  $('mPvp').classList.toggle('on', m === 'pvp');
+  $('stats').style.display = m === 'solo' ? '' : 'none';
+  $('soloHint').style.display = m === 'solo' ? '' : 'none';
+  $('pvpStats').style.display = 'none';
+  $('mask').classList.remove('open');
+  if (m === 'solo') {
+    // 停止联机（若在房间）
+    if (pvpStarted || roomCode) send('TN|leave');
+    pvpStarted = false; pvpEnded = false;
+    ta = null; tb = null; pBullets = []; role = 0; roomCode = '';
+    $('pvpPanel').style.display = 'none';
+    startedOnce = false;
+    if (ws && ws.readyState === 1 && !started) $('bStartIn').style.display = 'block';
+  } else {
+    // 停止单机（后台不再 tick）
+    if (started) send('TN|quit');
+    started = false; over = false; startedOnce = false;
+    map = []; player = null; enemies = []; bullets = []; score = 0; lives = 3;
+    $('bStartIn').style.display = 'none';
+    if (ws && ws.readyState === 1 && roomCode) send('TN|leave');
+    roomCode = ''; showPvpPanel();
+  }
+  ctx.clearRect(0, 0, cv.width, cv.height);
+}
+$('mSolo').onclick = () => setMode('solo');
+$('mPvp').onclick = () => setMode('pvp');
+$('bBack').onclick = () => location.href = 'chat.html';
+$('bStartIn').onclick = () => { if (startedOnce) return; startedOnce = true; send('TN|new'); $('bStartIn').style.display = 'none'; };
+$('bClose').onclick = () => {
+  $('mask').classList.remove('open');
+  if (mode === 'solo') { startedOnce = false; $('bStartIn').style.display = 'block'; }
+  else if (mode === 'pvp') { if (roomCode) roomWaitShow(rwRole, rwRa, rwRb); else showPvpPanel(); }
+};
+$('bRestart').onclick = () => {
+  if (mode === 'solo') { $('mask').classList.remove('open'); startedOnce = false; $('bStartIn').style.display = 'block'; }
+  else {
+    send('TN|ready');
+    // 弹窗转为"等待对方"状态
+    $('rTitle').textContent = '⏳ 已准备，等待对方…';
+    $('rMsg').textContent = '对方准备后将自动开始新一局';
+    $('bRestart').disabled = true;
+    $('bRestart').style.opacity = '.55';
+  }
+};
+$('bLeave').onclick = () => { send('TN|leave'); roomCode = ''; try { localStorage.removeItem('tn_pvp'); } catch (e) {} $('mask').classList.remove('open'); showPvpPanel(); };
+$('bReady').onclick = () => { send('TN|ready'); };
+$('bInvite').onclick = () => {
+  if (!roomCode) return;
+  const link = location.origin + '/tank.html?room=' + roomCode;
+  send('【游戏邀请】🚗 坦克大战房间 ' + roomCode + '，点链接进入对局：' + link);
+  addNotice('📨 邀请已发送到聊天室！');
+};
+$('bLeaveRoom').onclick = () => { send('TN|leave'); roomCode = ''; try { localStorage.removeItem('tn_pvp'); } catch (e) {} showPvpPanel(); };
+$('bCreate').onclick = () => {
+  roomCode = '';
+  const sz = $('sSize') ? $('sSize').value : 24;
+  const lv = $('sLives') ? $('sLives').value : 3;
+  send('TN|create|' + sz + '|' + lv);
+};
+$('bJoin').onclick = () => {
+  const c = $('iJoin').value.trim(); if (!c) return;
+  roomCode = c; send('TN|join|' + c);
+};
+$('iJoin').onkeydown = e => { if (e.key === 'Enter') $('bJoin').click(); };
+// ===== 初始化 =====
+window.addEventListener('resize', () => { fitBoard(); resize(); draw(); });
+fitBoard(); resize(); draw();
+connect();
+</script>
+</body>
+</html>

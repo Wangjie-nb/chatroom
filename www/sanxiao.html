@@ -1,0 +1,312 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>🍯 三消小院（羊了个羊）</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent }
+  html, body { height: 100% }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: linear-gradient(180deg, #7ccf7a 0%, #a8e6a1 45%, #ffe0b2 100%);
+    color: #3e2f1e;
+    display: flex; flex-direction: column;
+    max-width: 640px; margin: 0 auto; min-height: 100vh;
+  }
+  header {
+    flex: none; display: flex; align-items: center; gap: .5rem;
+    background: linear-gradient(135deg, #8d6e63, #a1887f);
+    color: #fff; padding: calc(.6rem + env(safe-area-inset-top, 0px)) .9rem .6rem;
+    box-shadow: 0 4px 14px rgba(0,0,0,.25); border-bottom: 3px solid #6d4c41;
+  }
+  header h1 { font-size: 1.08rem; flex: 1; font-weight: 700 }
+  #bBack {
+    flex: none; border: none; cursor: pointer; color: #fff;
+    background: rgba(255,255,255,.18); backdrop-filter: blur(4px);
+    padding: 6px 12px; border-radius: 999px; font-size: .85rem; font-weight: 600;
+    min-height: 38px;
+  }
+  #bBack:hover { background: rgba(255,255,255,.3) }
+  #bBack:active { transform: scale(.95) }
+  .st { font-size: .78rem; opacity: .9; background: rgba(255,255,255,.18); padding: 3px 9px; border-radius: 999px }
+  #info {
+    flex: none; display: flex; gap: .6rem; justify-content: center; flex-wrap: wrap;
+    padding: .5rem .6rem; font-size: .82rem; color: #4e342e;
+  }
+  #info b { color: #e65100 }
+  /* ===== 平面牌堆舞台 ===== */
+  #stage-wrap { flex: 1; min-height: 0; display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 8px 6px }
+  #stage { position: relative; transform-origin: center center; }
+  .tile {
+    position: absolute;
+    width: 64px; height: 64px;
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 30px;
+    background: linear-gradient(145deg, #fffdf2, #ffe9b8);
+    border: 3px solid #ffb74d;
+    box-shadow: 0 4px 8px rgba(0,0,0,.18), inset 0 -4px 0 rgba(0,0,0,.06);
+    user-select: none;
+    transition: transform .12s ease, box-shadow .12s ease, opacity .25s ease, filter .2s ease;
+  }
+  .tile.pickable { cursor: pointer; }
+  .tile.pickable:active { transform: scale(.95) }
+  .tile.blocked { cursor: not-allowed; filter: brightness(.7) saturate(.6) }
+  .tile.gone { opacity: 0; transform: scale(.5); pointer-events: none }
+  .tile.picked { animation: fly .28s ease forwards; z-index: 999 !important }
+  @keyframes fly { to { transform: translateY(-26px) scale(1.12) } }
+  .tile.hint3d { outline: 4px solid #ff5722; outline-offset: -2px; box-shadow: 0 0 0 6px rgba(255,87,34,.4) }
+  /* ===== 槽位 ===== */
+  #slotbar { flex: none; padding: .45rem .6rem; background: rgba(255,248,225,.9); border-top: 2px dashed #bcaaa4 }
+  #slot { display: flex; gap: 6px; justify-content: center; max-width: 420px; margin: 0 auto; }
+  .sbox {
+    width: 44px; height: 44px; border-radius: 10px;
+    background: rgba(255,255,255,.5); border: 2px dashed #d7ccc8;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+  }
+  .sbox.fill { background: linear-gradient(145deg,#fffdf2,#ffe9b8); border: 2px solid #ffb74d }
+  /* ===== 按钮 ===== */
+  #btns {
+    flex: none; display: flex; gap: .5rem; justify-content: center; flex-wrap: wrap;
+    padding: .5rem .6rem calc(.5rem + env(safe-area-inset-bottom, 0px));
+  }
+  #btns button {
+    min-height: 44px; padding: .5rem 1.05rem; font-size: .9rem; font-weight: 700;
+    border: none; border-radius: 999px; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg, #ff9800, #ffb74d);
+    box-shadow: 0 3px 8px rgba(255,152,0,.35);
+  }
+  #btns button:active { transform: translateY(1px) }
+  #btns .g { background: linear-gradient(135deg, #8d6e63, #a1887f) }
+  /* ===== 弹窗 ===== */
+  #mask { position: fixed; inset: 0; z-index: 100; display: none; align-items: center; justify-content: center;
+    background: rgba(62,39,35,.55); padding: 20px }
+  #mask.open { display: flex }
+  .card {
+    width: 100%; max-width: 320px; background: linear-gradient(170deg,#fffaf0,#ffe0b2);
+    border: 3px solid #ff9800; border-radius: 18px; padding: 22px 18px; text-align: center;
+    box-shadow: 0 20px 50px rgba(0,0,0,.35)
+  }
+  .card h2 { font-size: 1.4rem; margin-bottom: 8px; color: #4e342e }
+  .card p { font-size: .9rem; color: #6d4c41; margin-bottom: 14px }
+  .card button { min-height: 44px; padding: .55rem 1.5rem; border: none; border-radius: 999px;
+    font-size: 1rem; font-weight: 700; color: #fff; cursor: pointer;
+    background: linear-gradient(135deg,#ff9800,#ffb74d) }
+  #msg { flex: none; text-align: center; font-size: .8rem; color: #a1887f; padding: 0 .6rem .2rem; min-height: 1.2em }
+</style>
+</head>
+<body>
+  <header>
+    <button id="bBack">← 返回</button>
+    <h1>🍯 三消小院（羊了个羊）</h1>
+    <span class="st" id="st">连接中</span>
+  </header>
+  <div id="info">已消除 <b id="cCleared">0</b> / <span id="cTotal">0</span> ｜ 剩余牌堆 <b id="cLeft">0</b></div>
+  <div id="stage-wrap">
+    <div id="stage"></div>
+  </div>
+  <div id="slotbar">
+    <div id="slot"></div>
+  </div>
+  <div id="msg">点上层亮着的牌进槽位，凑齐 3 张相同图案消除 🐻</div>
+  <div id="btns">
+    <button id="bNew">🔄 新开局</button>
+    <button id="bShuf" class="g">🔀 洗牌</button>
+    <button id="bHint" class="g">💡 提示</button>
+  </div>
+  <div id="mask"><div class="card" id="resultCard">
+    <h2 id="rcTitle">🎉</h2>
+    <p id="rcMsg"></p>
+    <button id="rcBtn">再来一局</button>
+  </div></div>
+<script>
+  const $ = id => document.getElementById(id);
+  const CELL = 64, OFF = 20, JIT = 8;
+  let ws = null, retry = 1, closed = false;
+  let tiles = {};   // id -> {pattern, px, py, layer, blocked, removed, el}
+  let slot = [];    // 槽位里的 tile id
+  let cleared = 0, total = 0, W = 6, H = 3, L = 3, NP = 6;
+  const EMOJI = ['🌰', '🍎', '🥕', '🐟', '🍇', '🥦', '🍄', '🪵', '☁️', '🔔', '🧶', '🌽'];
+
+  function buildSlot() { $('slot').innerHTML = ''; for (let i = 0; i < 7; i++) { const d = document.createElement('div'); d.className = 'sbox'; $('slot').appendChild(d); } }
+  function renderSlot() {
+    const boxes = $('slot').children;
+    for (let i = 0; i < boxes.length; i++) {
+      const b = boxes[i];
+      if (i < slot.length && tiles[slot[i]]) { b.className = 'sbox fill'; b.textContent = EMOJI[tiles[slot[i]].pattern]; }
+      else { b.className = 'sbox'; b.textContent = ''; }
+    }
+  }
+  function layoutStage() {
+    let maxX = 0, maxY = 0;
+    for (const k in tiles) {
+      const t = tiles[k];
+      maxX = Math.max(maxX, t.px + CELL);
+      maxY = Math.max(maxY, t.py + CELL);
+    }
+    const stage = $('stage');
+    stage.style.width = maxX + 'px';
+    stage.style.height = maxY + 'px';
+    const wrap = $('stage-wrap');
+    const availW = wrap.clientWidth - 12, availH = wrap.clientHeight - 12;
+    const s = Math.min(1, availW / maxX, availH / maxY);
+    stage.style.transform = 'scale(' + s + ')';
+  }
+  function buildBoard(data) {
+    tiles = {}; slot = []; cleared = 0;
+    $('stage').innerHTML = '';
+    const parts = data.split(';');
+    for (const p of parts) {
+      if (!p) continue;
+      const eq = p.split('=');
+      const id = parseInt(eq[0]);
+      const f = eq[1].split(',');
+      tiles[id] = { id, pattern: parseInt(f[0]), px: parseInt(f[1]), py: parseInt(f[2]),
+                    layer: parseInt(f[3]), blocked: parseInt(f[4]) === 1, removed: false };
+    }
+    total = Object.keys(tiles).length;
+    $('cTotal').textContent = total;
+    const ids = Object.keys(tiles).map(Number).sort((a, b) => a - b);
+    for (const id of ids) {
+      const t = tiles[id];
+      const d = document.createElement('div');
+      d.className = 'tile' + (t.blocked ? ' blocked' : ' pickable');
+      d.style.left = Math.max(0, t.px) + 'px';
+      d.style.top = Math.max(0, t.py) + 'px';
+      d.style.zIndex = 10 + t.layer * 10;
+      d.textContent = EMOJI[t.pattern];
+      d.dataset.id = id;
+      d.onclick = () => pick(id);
+      t.el = d;
+      $('stage').appendChild(d);
+    }
+    layoutStage();
+    buildSlot(); renderSlot(); updateInfo();
+  }
+  function applyReblock(data) {
+    const parts = data.split(';');
+    for (const p of parts) {
+      if (!p) continue;
+      const eq = p.split('=');
+      const id = parseInt(eq[0]), bl = parseInt(eq[1]) === 1;
+      if (tiles[id]) {
+        tiles[id].blocked = bl;
+        if (!tiles[id].removed) tiles[id].el.className = 'tile' + (bl ? ' blocked' : ' pickable');
+      }
+    }
+    checkLocalStuck();
+  }
+  function updateInfo() {
+    $('cCleared').textContent = cleared;
+    $('cLeft').textContent = total - cleared - slot.length;
+    checkLocalStuck();
+  }
+  // 前端兜底：本地检测"没有任何可点牌"→ 提示洗牌（即使服务器旧引擎没发 T3|stuck）
+  let localStuckShown = false;
+  function checkLocalStuck() {
+    let pickable = 0;
+    for (const id in tiles) {
+      const t = tiles[id];
+      if (t && !t.removed && !t.blocked) { pickable++; break; }
+    }
+    if (pickable === 0) {
+      if (!localStuckShown) { toast('⚠️ 当前局面无解了，点「洗牌」可救回来'); localStuckShown = true; }
+    } else {
+      localStuckShown = false;
+    }
+  }
+  function pick(id) {
+    const t = tiles[id];
+    if (!t || t.removed) return;
+    if (t.blocked) {
+      // 先判断是否还有别的可点牌：有 → 提示先消上层；无 → 提示洗牌
+      let other = 0;
+      for (const k in tiles) { const x = tiles[k]; if (x && !x.removed && !x.blocked) { other++; break; } }
+      toast(other ? '这张牌被上面的牌压住了，先点上面亮着的牌' : '⚠️ 没有可点的牌了，点「洗牌」重排');
+      return;
+    }
+    send('T3|pick|' + id);
+  }
+  function toast(m) { $('msg').textContent = m; setTimeout(() => { if ($('msg').textContent === m) $('msg').textContent = ''; }, 1800); }
+  function showResult(title, msg) { $('rcTitle').textContent = title; $('rcMsg').textContent = msg; $('mask').classList.add('open'); }
+
+  // ===== WS =====
+  function connect() {
+    const proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    ws = new WebSocket(proto + location.host + '/ws');
+    ws.onopen = () => { $('st').textContent = '已连接'; retry = 1; newGame(); };
+    ws.onmessage = e => onMsg(e.data);
+    ws.onclose = () => { $('st').textContent = '已断开'; if (closed) return; setTimeout(connect, retry * 1000); retry = Math.min(retry * 2, 30); };
+    ws.onerror = () => { };
+  }
+  function send(s) { if (ws && ws.readyState === 1) ws.send(s); else toast('未连接'); }
+
+  function onMsg(d) {
+    d = d.replace(/\n$/, '');
+    if (d.indexOf('T3|init|') === 0) {
+      const parts = d.slice(8).split('|');   // [W,H,L,NP,data]
+      W = +parts[0]; H = +parts[1]; L = +parts[2]; NP = +parts[3];
+      buildBoard(parts.slice(4).join('|'));
+      return;
+    }
+    if (d.indexOf('T3|pickok|') === 0) {
+      const p = d.slice(10).split('|');
+      const id = +p[0];
+      tiles[id].removed = true;
+      tiles[id].el.classList.add('picked');
+      slot.push(id);
+      renderSlot(); updateInfo();
+      setTimeout(() => { if (tiles[id]) tiles[id].el.classList.add('gone'); }, 260);
+      return;
+    }
+    if (d.indexOf('T3|clear|') === 0) {
+      const ids = d.slice(9).split(',').filter(x => x !== '').map(Number);
+      const keep = slot.filter(x => !ids.includes(x));
+      for (const id of ids) { if (tiles[id]) tiles[id].removed = true; }
+      slot = keep;
+      cleared += 3;
+      renderSlot(); updateInfo();
+      for (const id of ids) { const t = tiles[id]; if (t && t.el) t.el.classList.add('gone'); }
+      return;
+    }
+    if (d === 'T3|win') { showResult('🎉 过关啦！', '所有图案都消除干净了！'); return; }
+    if (d === 'T3|fail') { showResult('😵 槽位满了', '7 格槽位没有凑出三消，本局失败'); return; }
+    if (d.indexOf('T3|reblock|') === 0) { applyReblock(d.slice(10)); return; }
+    if (d.indexOf('T3|shuffled|') === 0) {
+      const k = cleared;
+      buildBoard(d.slice(11));
+      cleared = k;
+      updateInfo();
+      toast('已洗牌，槽位已清空 🃏');
+      return;
+    }
+    if (d.indexOf('T3|seq|') === 0) {
+      const groups = d.slice(7).split(';').filter(x => x !== '');
+      if (!groups.length) { toast('当前局面无解，试试洗牌'); return; }
+      const g = groups[0].split(',').map(Number);
+      g.forEach(id => { if (tiles[id]) { tiles[id].el.classList.remove('hint3d'); void tiles[id].el.offsetWidth; tiles[id].el.classList.add('hint3d'); } });
+      setTimeout(() => g.forEach(id => { if (tiles[id]) tiles[id].el.classList.remove('hint3d'); }), 2500);
+      toast('提示：消除标记的 3 张 💡');
+      return;
+    }
+    if (d.indexOf('T3|err|') === 0) { toast(d.slice(7)); return; }
+    if (d === 'T3|stuck') { toast('⚠️ 当前局面无解了，点「洗牌」可救回来'); return; }
+  }
+
+  function newGame() {
+    $('mask').classList.remove('open');
+    send('T3|new|' + W + '|' + H + '|' + L + '|' + NP);
+  }
+  $('bNew').onclick = newGame;
+  $('bBack').onclick = () => { location.href = 'chat.html'; };
+  $('rcBtn').onclick = newGame;
+  $('bShuf').onclick = () => send('T3|shuffle');
+  $('bHint').onclick = () => send('T3|seq');
+  window.addEventListener('resize', () => { if (Object.keys(tiles).length) layoutStage(); });
+  buildSlot();
+  connect();
+</script>
+</body>
+</html>

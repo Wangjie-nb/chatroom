@@ -1,0 +1,884 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>♟ 中国象棋 - 单机双人</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: "PingFang SC", "Microsoft YaHei", system-ui, sans-serif;
+    background: radial-gradient(ellipse at 50% 0%, #7a4a2a 0%, #5a3418 45%, #3e2210 100%);
+    min-height: 100vh; display: flex; flex-direction: column;
+    align-items: center; padding: 12px 8px;
+  }
+  .topbar {
+    width: 100%; max-width: 620px; display: flex; align-items: center;
+    justify-content: space-between; margin-bottom: 8px;
+  }
+  h1 {
+    font-size: 20px; color: #ffe9c8; letter-spacing: 2px;
+    text-shadow: 0 2px 6px rgba(0,0,0,.5); flex: 1; text-align: center;
+  }
+  #bBack {
+    padding: 8px 14px; font-size: 14px; font-weight: 600;
+    border: 2px solid rgba(255,233,200,.4); border-radius: 10px;
+    cursor: pointer; color: #ffe9c8; background: rgba(255,255,255,.08);
+    backdrop-filter: blur(4px);
+  }
+  #bBack:hover { background: rgba(255,255,255,.18); }
+  #status {
+    font-size: 16px; font-weight: 700; color: #ffe9c8; min-height: 24px;
+    margin: 6px 0; text-align: center; text-shadow: 0 1px 4px rgba(0,0,0,.6);
+  }
+  #wrap { position: relative; touch-action: manipulation; }
+  canvas {
+    display: block; max-width: 100%; height: auto; border-radius: 14px;
+    box-shadow: 0 12px 40px rgba(0,0,0,.55), inset 0 0 0 3px #6b4226;
+  }
+  .btns { display: flex; gap: 12px; margin-top: 14px; flex-wrap: wrap; justify-content: center; }
+  .btns button {
+    padding: 10px 22px; font-size: 15px; font-weight: 600;
+    border: none; border-radius: 12px; cursor: pointer; color: #fff;
+    background: linear-gradient(135deg, #a9743f, #c08a4d);
+    box-shadow: 0 4px 12px rgba(0,0,0,.35);
+  }
+  .btns button:active { transform: translateY(1px); }
+  .btns button.alt { background: linear-gradient(135deg, #6b4226, #8a5a33); }
+  .tip { margin-top: 10px; font-size: 12px; color: rgba(255,233,200,.7); text-align: center; line-height: 1.6; }
+</style>
+</head>
+<body>
+  <div class="topbar">
+    <button id="bBack">← 返回</button>
+    <h1>♟ 中国象棋</h1>
+    <span style="width:64px"></span>
+  </div>
+  <div id="status">红方先行</div>
+  <div id="clockBar" style="display:none;background:linear-gradient(135deg,rgba(30,20,10,.85),rgba(50,35,20,.85));border:2px solid #c98d3d;border-radius:12px;padding:6px 12px;margin:6px 10px;display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:14px;gap:8px;flex-wrap:wrap;">
+    <span id="clkRed" style="color:#ff6b4a;">🔴 --:--</span>
+    <span id="clkTurn" style="color:#ffd27f;font-size:12px;">--</span>
+    <span id="clkBlack" style="color:#4ac6ff;">⚫ --:--</span>
+  </div>
+  <div id="wrap"><canvas id="cv"></canvas></div>
+  <div class="btns">
+    <button class="alt" id="bUndo">↩️ 悔棋</button>
+    <button id="bRestart">🔄 重新开始</button>
+  </div>
+  <div class="btns">
+    <button id="bCreate">🎮 创建房间</button>
+    <button id="bJoin">🔑 加入房间</button>
+    <button id="bRoomCode">📋 房间码</button>
+    <button id="bReadyPanel">📋 准备</button>
+    <button class="alt" id="bLeave">🚪 离开</button>
+  </div>
+  <div class="tip">红方先走 · 点击选中（绿点=可走）再点落子 · 被将军必须应将</div>
+
+  <!-- 房间码弹窗 -->
+  <div id="roomModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:99;align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(160deg,#3a2a1a,#2a1f14);border:2px solid #c98d3d;border-radius:18px;padding:26px 30px;text-align:center;min-width:250px;max-width:85%;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+      <div style="color:#ffd27f;font-size:14px;font-weight:600;margin-bottom:6px;">🎮 你的房间码</div>
+      <div id="roomCodeBig" style="font-size:46px;font-weight:700;color:#fff;letter-spacing:8px;margin:10px 0;text-shadow:0 2px 6px rgba(201,141,61,.5);">0000</div>
+      <div style="color:rgba(255,233,200,.75);font-size:12px;line-height:1.5;margin-bottom:16px;">把房间码告诉朋友<br>让对方点击「🔑 加入房间」输入即可</div>
+      <div style="display:flex;gap:10px;justify-content:center;">
+        <button id="roomCopy" style="padding:10px 18px;font-size:14px;font-weight:700;border:none;border-radius:12px;cursor:pointer;background:linear-gradient(135deg,#c98d3d,#a96f2b);color:#fff;">📋 复制</button>
+        <button id="roomClose" style="padding:10px 18px;font-size:14px;border:none;border-radius:12px;cursor:pointer;background:rgba(255,255,255,.12);color:#ffd9a8;">关闭</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 创建房间设置弹窗 -->
+  <div id="createModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:100;align-items:center;justify-content:center;">
+    <div style="background:linear-gradient(160deg,#3a2a1a,#2a1f14);border:2px solid #c98d3d;border-radius:18px;padding:24px 26px;min-width:280px;max-width:90%;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+      <div style="color:#ffd27f;font-size:16px;font-weight:700;margin-bottom:16px;text-align:center;">🎮 创建房间</div>
+      <div style="margin-bottom:12px;">
+        <div style="color:#e8c9a0;font-size:12px;margin-bottom:5px;">⏱️ 对局总时长</div>
+        <select id="crTotal" style="width:100%;padding:8px;border-radius:10px;border:1px solid #c98d3d;background:#2a1f14;color:#ffd9a8;font-size:14px;outline:none;">
+          <option value="0">不限</option>
+          <option value="300">5 分钟</option>
+          <option value="600" selected>10 分钟</option>
+          <option value="900">15 分钟</option>
+          <option value="1800">30 分钟</option>
+          <option value="3600">60 分钟</option>
+        </select>
+      </div>
+      <div style="margin-bottom:12px;">
+        <div style="color:#e8c9a0;font-size:12px;margin-bottom:5px;">⚡ 每步限时（超时判负）</div>
+        <select id="crStep" style="width:100%;padding:8px;border-radius:10px;border:1px solid #c98d3d;background:#2a1f14;color:#ffd9a8;font-size:14px;outline:none;">
+          <option value="0" selected>不限</option>
+          <option value="15">15 秒</option>
+          <option value="30">30 秒</option>
+          <option value="60">60 秒</option>
+          <option value="120">120 秒</option>
+        </select>
+      </div>
+      <div style="margin-bottom:18px;">
+        <div style="color:#e8c9a0;font-size:12px;margin-bottom:5px;">♟️ 我执</div>
+        <button id="crSide" style="width:100%;padding:9px;border-radius:10px;border:1px solid #c98d3d;background:linear-gradient(135deg,#c98d3d,#a96f2b);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">🔴 先手（红）</button>
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button id="crOk" style="flex:1;padding:10px;border:none;border-radius:12px;background:linear-gradient(135deg,#e2574c,#c0392b);color:#fff;font-size:14px;font-weight:700;cursor:pointer;">开始创建</button>
+        <button id="crCancel" style="flex:1;padding:10px;border:none;border-radius:12px;background:rgba(255,255,255,.12);color:#ffd9a8;font-size:14px;cursor:pointer;">取消</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 准备面板 -->
+  <div id="readyModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:101;align-items:center;justify-content:center;">
+    <div style="position:relative;background:linear-gradient(160deg,#3a2a1a,#2a1f14);border:2px solid #c98d3d;border-radius:18px;padding:24px 28px;text-align:center;min-width:270px;max-width:88%;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+      <div id="rdClose" style="position:absolute;top:8px;right:12px;font-size:20px;color:rgba(255,210,127,.75);cursor:pointer;line-height:1;padding:2px 6px;">✕</div>
+      <div style="color:#ffd27f;font-size:16px;font-weight:700;margin-bottom:4px;">🎮 房间 <span id="rdCode" style="letter-spacing:3px;">----</span></div>
+      <div style="color:rgba(255,233,200,.7);font-size:12px;margin-bottom:14px;">双方都点击「我准备好了」后自动开始</div>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:18px;">
+        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;color:#ffb09a;display:flex;justify-content:space-between;align-items:center;">🔴 红方 <span id="rdRed" style="color:#9bd18a;">未准备</span></div>
+        <div style="background:rgba(255,255,255,.06);border-radius:10px;padding:9px 14px;font-size:14px;font-weight:600;color:#9acef2;display:flex;justify-content:space-between;align-items:center;">⚫ 黑方 <span id="rdBlack" style="color:#9bd18a;">未准备</span></div>
+      </div>
+      <button id="rdReady" style="width:100%;padding:11px;border:none;border-radius:12px;background:linear-gradient(135deg,#7cb342,#558b2f);color:#fff;font-size:15px;font-weight:700;cursor:pointer;">✅ 我准备好了</button>
+      <button id="rdInvite" style="width:100%;margin-top:10px;padding:10px;border:2px solid #c98d3d;border-radius:12px;background:transparent;color:#ffd27f;font-size:13px;font-weight:600;cursor:pointer;">📨 发邀请到聊天室</button>
+    </div>
+  </div>
+<script>
+(function(){
+  "use strict";
+  var cv = document.getElementById('cv');
+  var ctx = cv.getContext('2d');
+  var statusEl = document.getElementById('status');
+
+  var CELL = 56, M = 36;
+  var W = 9 * CELL + 2 * M, H = 10 * CELL + 2 * M;
+  var DPR = window.devicePixelRatio || 1;
+  cv.width = W * DPR; cv.height = H * DPR;
+  cv.style.width = W + 'px'; cv.style.maxWidth = '100%';
+  ctx.scale(DPR, DPR);
+
+  // ============ 规则层（已验证） ============
+  var TYPES = { k:'帅将', a:'士仕', e:'相象', h:'马馬', r:'车車', c:'炮砲', p:'兵卒' };
+  function charOf(p){ return p ? TYPES[p.type][p.side==='r'?0:1] : ''; }
+
+  function freshBoard(){
+    var b=[];
+    for(var y=0;y<10;y++){ b.push([]); for(var x=0;x<9;x++) b[y].push(null); }
+    var back=['r','h','e','a','k','a','e','h','r'];
+    for(var x=0;x<9;x++){ b[0][x]={side:'b',type:back[x]}; b[9][x]={side:'r',type:back[x]}; }
+    b[2][1]={side:'b',type:'c'}; b[2][7]={side:'b',type:'c'};
+    b[7][1]={side:'r',type:'c'}; b[7][7]={side:'r',type:'c'};
+    b[3][0]={side:'b',type:'p'}; b[3][2]={side:'b',type:'p'}; b[3][4]={side:'b',type:'p'}; b[3][6]={side:'b',type:'p'}; b[3][8]={side:'b',type:'p'};
+    b[6][0]={side:'r',type:'p'}; b[6][2]={side:'r',type:'p'}; b[6][4]={side:'r',type:'p'}; b[6][6]={side:'r',type:'p'}; b[6][8]={side:'r',type:'p'};
+    return b;
+  }
+  function inB(x,y){ return x>=0 && x<9 && y>=0 && y<10; }
+  function clone(b){ var nb=[]; for(var y=0;y<10;y++){ nb.push([]); for(var x=0;x<9;x++) nb[y].push(b[y][x]); } return nb; }
+  function doMove(b, from, to){ b[to[1]][to[0]]=b[from[1]][from[0]]; b[from[1]][from[0]]=null; }
+
+  function attackCell(b, side, x, y, tx, ty){
+    var p=b[y][x];
+    var dx=tx-x, dy=ty-y;
+    switch(p.type){
+      case 'r':
+        if(x===tx){ var d=ty>y?1:-1; for(var yy=y+d;yy!==ty;yy+=d) if(b[yy][x])return false; return true; }
+        if(y===ty){ var d2=tx>x?1:-1; for(var xx=x+d2;xx!==tx;xx+=d2) if(b[y][xx])return false; return true; }
+        return false;
+      case 'c':
+        if(x===tx){ var cnt=0,d3=ty>y?1:-1; for(var yy2=y+d3;yy2!==ty;yy2+=d3) if(b[yy2][x])cnt++; return cnt===1; }
+        if(y===ty){ var cnt2=0,d4=tx>x?1:-1; for(var xx2=x+d4;xx2!==tx;xx2+=d4) if(b[y][xx2])cnt2++; return cnt2===1; }
+        return false;
+      case 'h':
+        if(dx*dx+dy*dy===5){
+          if(dx*dx===4) return !b[y][x+(dx>0?1:-1)];
+          if(dy*dy===4) return !b[y+(dy>0?1:-1)][x];
+        }
+        return false;
+      case 'e':
+        if(dx*dx===4&&dy*dy===4&&!b[y+(dy>0?1:-1)][x+(dx>0?1:-1)]){
+          if(side==='r'&&ty>=5)return true;
+          if(side==='b'&&ty<=4)return true;
+        }
+        return false;
+      case 'a':
+        if(dx*dx===1&&dy*dy===1&&tx>=3&&tx<=5){
+          if(side==='r'&&ty>=7&&ty<=9)return true;
+          if(side==='b'&&ty>=0&&ty<=2)return true;
+        }
+        return false;
+      case 'k':
+        if(dx*dx+dy*dy===1&&tx>=3&&tx<=5){
+          if(side==='r'&&ty>=7&&ty<=9)return true;
+          if(side==='b'&&ty>=0&&ty<=2)return true;
+        }
+        if(x===tx&&ty!==y){
+          var blocked=false,d5=ty>y?1:-1;
+          for(var yy3=y+d5;yy3!==ty;yy3+=d5) if(b[yy3][x]){blocked=true;break;}
+          if(!blocked){ var t2=b[ty][tx]; if(t2&&t2.type==='k'&&t2.side!==side)return true; }
+        }
+        return false;
+      case 'p':
+        if(side==='r'){ if(ty===y-1&&tx===x)return true; if(y<=4&&ty===y&&Math.abs(tx-x)===1)return true; }
+        else { if(ty===y+1&&tx===x)return true; if(y>=5&&ty===y&&Math.abs(tx-x)===1)return true; }
+        return false;
+    }
+    return false;
+  }
+  function isAttacked(b, side, tx, ty){
+    var enemy=side==='r'?'b':'r';
+    for(var y=0;y<10;y++)for(var x=0;x<9;x++){ var p=b[y][x]; if(!p||p.side!==enemy)continue; if(attackCell(b,enemy,x,y,tx,ty))return true; }
+    return false;
+  }
+  function inCheck(b, side){
+    for(var y=0;y<10;y++)for(var x=0;x<9;x++){ var p=b[y][x]; if(p&&p.side===side&&p.type==='k') return isAttacked(b,side,x,y); }
+    return false;
+  }
+  function genRaw(b, x, y){
+    var p=b[y][x], side=p.side, moves=[];
+    function add(nx,ny){ if(inB(nx,ny)) moves.push([nx,ny]); }
+    switch(p.type){
+      case 'r':
+        for(var d=-1;d<=1;d+=2){
+          for(var s=1;s<9;s++){ var xx=x+d*s; if(!inB(xx,y))break; if(b[y][xx]){ if(b[y][xx].side!==side) add(xx,y); break; } add(xx,y); }
+          for(var s2=1;s2<9;s2++){ var yy=y+d*s2; if(!inB(x,yy))break; if(b[yy][x]){ if(b[yy][x].side!==side) add(x,yy); break; } add(x,yy); }
+        }
+        break;
+      case 'c':
+        for(var d2=-1;d2<=1;d2+=2){
+          for(var s3=1;s3<9;s3++){ var xx2=x+d2*s3; if(!inB(xx2,y))break; if(b[y][xx2]){ for(var s4=s3+1;s4<9;s4++){ var xx3=x+d2*s4; if(!inB(xx3,y))break; if(b[y][xx3]){ if(b[y][xx3].side!==side) add(xx3,y); break; } } break; } add(xx2,y); }
+          for(var s5=1;s5<9;s5++){ var yy2=y+d2*s5; if(!inB(x,yy2))break; if(b[yy2][x]){ for(var s6=s5+1;s6<9;s6++){ var yy3=y+d2*s6; if(!inB(x,yy3))break; if(b[yy3][x]){ if(b[yy3][x].side!==side) add(x,yy3); break; } } break; } add(x,yy2); }
+        }
+        break;
+      case 'h':
+        var hdx=[-2,-2,-1,-1,1,1,2,2], hdy=[-1,1,-2,2,-2,2,-1,1];
+        for(var i=0;i<8;i++){ var nx=x+hdx[i], ny=y+hdy[i]; if(!inB(nx,ny))continue; if(hdx[i]*hdx[i]===4){ if(b[y][x+(hdx[i]>0?1:-1)])continue; } else { if(b[y+(hdy[i]>0?1:-1)][x])continue; } if(!b[ny][nx]||b[ny][nx].side!==side) add(nx,ny); }
+        break;
+      case 'e':
+        var edx=[-2,-2,2,2], edy=[-2,2,-2,2];
+        for(var i2=0;i2<4;i2++){ var nx2=x+edx[i2], ny2=y+edy[i2]; if(!inB(nx2,ny2))continue; if(b[y+(edy[i2]>0?1:-1)][x+(edx[i2]>0?1:-1)])continue; if(side==='r'&&ny2<5)continue; if(side==='b'&&ny2>4)continue; if(!b[ny2][nx2]||b[ny2][nx2].side!==side) add(nx2,ny2); }
+        break;
+      case 'a':
+        var adx=[-1,-1,1,1], ady=[-1,1,-1,1];
+        for(var i3=0;i3<4;i3++){ var nx3=x+adx[i3], ny3=y+ady[i3]; if(nx3<3||nx3>5)continue; if(side==='r'&&(ny3<7||ny3>9))continue; if(side==='b'&&(ny3<0||ny3>2))continue; if(!b[ny3][nx3]||b[ny3][nx3].side!==side) add(nx3,ny3); }
+        break;
+      case 'k':
+        var kdx=[-1,1,0,0], kdy=[0,0,-1,1];
+        for(var i4=0;i4<4;i4++){ var nx4=x+kdx[i4], ny4=y+kdy[i4]; if(nx4<3||nx4>5)continue; if(side==='r'&&(ny4<7||ny4>9))continue; if(side==='b'&&(ny4<0||ny4>2))continue; if(!b[ny4][nx4]||b[ny4][nx4].side!==side) add(nx4,ny4); }
+        break;
+      case 'p':
+        if(side==='r'){ if(y-1>=0&&(!b[y-1][x]||b[y-1][x].side!==side)) add(x,y-1); if(y<=4){ if(x-1>=0&&(!b[y][x-1]||b[y][x-1].side!==side)) add(x-1,y); if(x+1<9&&(!b[y][x+1]||b[y][x+1].side!==side)) add(x+1,y); } }
+        else { if(y+1<10&&(!b[y+1][x]||b[y+1][x].side!==side)) add(x,y+1); if(y>=5){ if(x-1>=0&&(!b[y][x-1]||b[y][x-1].side!==side)) add(x-1,y); if(x+1<9&&(!b[y][x+1]||b[y][x+1].side!==side)) add(x+1,y); } }
+        break;
+    }
+    return moves;
+  }
+  function genLegal(b, x, y){
+    var p=b[y][x]; if(!p)return[];
+    var side=p.side, moves=[], raw=genRaw(b,x,y);
+    for(var i=0;i<raw.length;i++){ var nb=clone(b); doMove(nb,[x,y],raw[i]); if(!inCheck(nb,side))moves.push(raw[i]); }
+    return moves;
+  }
+  function hasLegalMove(b, side){
+    for(var y=0;y<10;y++)for(var x=0;x<9;x++){ var p=b[y][x]; if(p&&p.side===side&&genLegal(b,x,y).length>0)return true; }
+    return false;
+  }
+
+  // ============ 游戏状态 ============
+  var board = freshBoard();
+  var turn = 'r', selected = null, legal = [], history = [], gameOver = false;
+  // 动画状态
+  var anim = null;      // {fx,fy,tx,ty,piece,t0,t1,captured}
+  var particles = [];   // 吃子爆炸粒子
+  var checkFx = 0;      // 将军特效起始时间
+  var lastTime = 0, rafId = null;
+  var ws = null, serverMode = false;  // 服务器校验模式
+  var mySide = null, gameMode = 'solo';  // solo单机 / wait等对方 / online联机
+  var myRoomCode = null;  // 当前所在房间码
+  // 断线重连 token（localStorage 持久）
+  var xqToken=localStorage.getItem('xq_token');
+  if(!xqToken){ xqToken='u'+Date.now().toString(36)+Math.random().toString(36).slice(2,10); localStorage.setItem('xq_token',xqToken); }
+  var totalTime=0, stepTime=0;      // 房间时间参数（秒）
+  var autoJoinCode=''; try{ autoJoinCode=new URLSearchParams(location.search).get('room')||''; }catch(e){}
+  var redClock=0, blackClock=0;     // 双方剩余总时间（秒）
+  var stepClock=0;                  // 当前步剩余时间（秒）
+  var clockOn=false, clockInt=null; // 计时状态
+
+  function setStatus(t){ statusEl.textContent = t; }
+  function fmtClock(s){ s=Math.max(0,Math.ceil(s)); var m=Math.floor(s/60), ss=s%60; return (m<10?'0':'')+m+':'+(ss<10?'0':'')+ss; }
+  function updateClock(){
+    var elR=document.getElementById('clkRed'), elB=document.getElementById('clkBlack'), elT=document.getElementById('clkTurn');
+    if(totalTime>0){ elR.textContent='🔴 '+fmtClock(redClock); elB.textContent='⚫ '+fmtClock(blackClock); }
+    else if(stepTime>0){ elR.textContent='🔴 本步'; elB.textContent='⚫ 本步'; }
+    else { elR.textContent='🔴 --:--'; elB.textContent='⚫ --:--'; }
+    if(stepTime>0){ elT.textContent='本步 '+fmtClock(stepClock); }
+    else elT.textContent = (turn==='r' ? '红方走' : '黑方走');
+    elT.style.color = (turn==='r') ? '#ff6b4a' : '#4ac6ff';
+    if(totalTime>0){
+      elR.style.opacity = (turn==='r') ? '1' : '0.45';
+      elB.style.opacity = (turn==='b') ? '1' : '0.45';
+    }
+  }
+  function clockTick(){
+    if(!clockOn) return;
+    if(totalTime>0){ if(turn==='r'&&redClock>0) redClock--; else if(turn==='b'&&blackClock>0) blackClock--; }
+    if(stepTime>0 && stepClock>0) stepClock--;
+    updateClock();
+    // 本步时间耗尽时，交给服务器判定（GAME|timeout）
+  }
+  function startClock(){
+    if(totalTime<=0 && stepTime<=0) return;
+    redClock=0; blackClock=0;
+    if(totalTime>0){ redClock=totalTime; blackClock=totalTime; }
+    stepClock = stepTime>0 ? stepTime : 0;
+    document.getElementById('clockBar').style.display='flex';
+    clockOn=true;
+    if(clockInt) clearInterval(clockInt);
+    clockInt=setInterval(clockTick, 1000);
+    updateClock();
+  }
+  function stopClock(){
+    clockOn=false;
+    if(clockInt){ clearInterval(clockInt); clockInt=null; }
+  }
+  function hideClock(){
+    stopClock();
+    document.getElementById('clockBar').style.display='none';
+  }
+  // ---- 准备功能 ----
+  var redReady=0, blackReady=0;
+  function updReadyUI(){
+    var rEl=document.getElementById('rdRed'), bEl=document.getElementById('rdBlack');
+    rEl.textContent = redReady ? '✅ 已准备' : '未准备';
+    rEl.style.color = redReady ? '#7cb342' : '#9bd18a';
+    bEl.textContent = blackReady ? '✅ 已准备' : '未准备';
+    bEl.style.color = blackReady ? '#7cb342' : '#9bd18a';
+    var btn=document.getElementById('rdReady');
+    if(redReady && blackReady){ document.getElementById('readyModal').style.display='none'; }
+  }
+  function showReady(code){
+    document.getElementById('rdCode').textContent=code;
+    document.getElementById('readyModal').style.display='flex';
+    var btn=document.getElementById('rdReady');
+    btn.disabled=false; btn.textContent='✅ 我准备好了'; btn.style.opacity='1';
+    updReadyUI();
+  }
+  function hideReady(){ document.getElementById('readyModal').style.display='none'; }
+  function setMyReady(){
+    var btn=document.getElementById('rdReady');
+    if(btn.disabled) return;
+    btn.disabled=true; btn.textContent='✅ 已准备'; btn.style.opacity='0.6';
+    if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|ready');
+  }
+  function kingPos(b, side){
+    for(var y=0;y<10;y++)for(var x=0;x<9;x++){ var p=b[y][x]; if(p&&p.side===side&&p.type==='k')return[x,y]; }
+    return null;
+  }
+  function refreshStatus(){
+    if(gameOver) return;
+    if(inCheck(board, turn)){ setStatus('⚠️ '+(turn==='r'?'红':'黑')+'方被将军！'); checkFx = performance.now(); }
+    else setStatus((turn==='r'?'红':'黑')+'方走棋');
+  }
+
+  // ============ 渲染 ============
+  var viewFlip = false;   // 黑方视角：棋盘旋转180°
+  function px(c){ return M + (viewFlip ? (8-c) : c)*CELL; }   // x方向（黑方左右镜像）
+  function py(c){ return M + (viewFlip ? (9-c) : c)*CELL; }   // y方向（黑方上下颠倒）
+  function ease(t){ return t<.5 ? 4*t*t*t : 1-Math.pow(-2*t+2,3)/2; }
+
+  function drawBoard(){
+    // 背景木纹
+    var g=ctx.createLinearGradient(0,0,W,H);
+    g.addColorStop(0,'#eecb8a'); g.addColorStop(1,'#e0b878');
+    ctx.fillStyle=g; ctx.fillRect(0,0,W,H);
+    // 木纹细节
+    ctx.globalAlpha=0.06; ctx.strokeStyle='#6b4226';
+    for(var i=0;i<8;i++){ ctx.lineWidth=1; ctx.beginPath(); ctx.moveTo(0,py(i*1.2)); ctx.bezierCurveTo(W*0.3,py(i*1.2+0.5),W*0.6,py(i*1.2-0.4),W,py(i*1.2)); ctx.stroke(); }
+    ctx.globalAlpha=1;
+    // 网格
+    ctx.strokeStyle='#4a2c10'; ctx.lineWidth=1.6;
+    ctx.strokeRect(M, M, 8*CELL, 9*CELL);   // 外框固定位置，不随视角翻转
+    for(var x=1;x<9;x++){ ctx.beginPath(); ctx.moveTo(px(x),py(0)); ctx.lineTo(px(x),py(9)); ctx.stroke(); }
+    for(var y=1;y<10;y++){
+      ctx.beginPath(); ctx.moveTo(M,py(y));
+      ctx.lineTo(M+8*CELL, py(y)); ctx.stroke();
+    }
+    function diag(x1,y1,x2,y2){ ctx.beginPath(); ctx.moveTo(px(x1),py(y1)); ctx.lineTo(px(x2),py(y2)); ctx.stroke(); }
+    diag(3,0,5,2); diag(5,0,3,2); diag(3,7,5,9); diag(5,7,3,9);
+    // 交叉点圆点
+    ctx.fillStyle='#4a2c10';
+    var dots=[];
+    for(var x2=0;x2<9;x2++){ for(var y2=0;y2<10;y2++){
+      if((y2===0&&x2%2===1)||(y2===9&&x2%2===1)||(y2===2&&(x2===1||x2===7))||(y2===7&&(x2===1||x2===7))
+        ||(y2===3&&x2%2===0)||(y2===6&&x2%2===0)){ ctx.beginPath(); ctx.arc(px(x2),py(y2),3,0,Math.PI*2); ctx.fill(); }
+    }}
+    // 楚河汉界
+    ctx.fillStyle='#5a3418'; ctx.font='bold 32px "KaiTi","STKaiti",serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillText('楚  河', px(2.25), py(4.5));
+    ctx.fillText('汉  界', px(6.75), py(4.5));
+  }
+
+  function drawPieceAt(piece, cx, cy, scale, alpha){
+    var r=CELL*0.46*scale;
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    // 阴影
+    ctx.beginPath(); ctx.arc(cx+2,cy+3,r,0,Math.PI*2);
+    ctx.fillStyle='rgba(0,0,0,0.28)'; ctx.fill();
+    // 棋子主体
+    var g=ctx.createRadialGradient(cx-r*0.3,cy-r*0.35,r*0.1,cx,cy,r);
+    if(piece.side==='r'){ g.addColorStop(0,'#fff6e0'); g.addColorStop(0.6,'#f6ddab'); g.addColorStop(1,'#e7c482'); }
+    else { g.addColorStop(0,'#faf3e2'); g.addColorStop(0.6,'#efe0bd'); g.addColorStop(1,'#dcc68f'); }
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2); ctx.fillStyle=g; ctx.fill();
+    // 高光（无描边）
+    ctx.beginPath(); ctx.arc(cx-r*0.28,cy-r*0.3,r*0.2,0,Math.PI*2);
+    ctx.fillStyle='rgba(255,255,255,0.45)'; ctx.fill();
+    // 外圈边框（棋子大圆）
+    ctx.beginPath(); ctx.arc(cx,cy,r,0,Math.PI*2);
+    ctx.lineWidth=2.2; ctx.strokeStyle=piece.side==='r'?'#a02020':'#202020'; ctx.stroke();
+    // 字
+    ctx.font='bold '+(CELL*0.5*scale)+'px "KaiTi","STKaiti",serif';
+    ctx.textAlign='center'; ctx.textBaseline='middle';
+    ctx.fillStyle=piece.side==='r'?'#a02020':'#1a1a1a';
+    ctx.fillText(charOf(piece), cx, cy+1);
+    ctx.restore();
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,W,H);
+    drawBoard();
+    var now=performance.now();
+
+    // 吃子爆炸粒子
+    for(var i=particles.length-1;i>=0;i--){
+      var pt=particles[i];
+      var age=(now-pt.t0)/pt.dur;
+      if(age>=1){ particles.splice(i,1); continue; }
+      var x=pt.x+(pt.vx*age*pt.dist), y=pt.y+(pt.vy*age*pt.dist);
+      ctx.save(); ctx.globalAlpha=(1-age)*0.9;
+      ctx.fillStyle=pt.color;
+      ctx.beginPath(); ctx.arc(x,y,3+6*age,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // 将军特效：将/帅位置红色脉冲
+    if(inCheck(board,turn) && !gameOver){
+      var kp=kingPos(board,turn);
+      if(kp){
+        var age=((now-checkFx)%800)/800;
+        ctx.save();
+        ctx.strokeStyle='rgba(255,40,40,'+(1-age)*0.85+')';
+        ctx.lineWidth=4;
+        ctx.beginPath(); ctx.arc(px(kp[0]),py(kp[1]),CELL*(0.55+age*0.35),0,Math.PI*2); ctx.stroke();
+        // 内部光晕
+        var g=ctx.createRadialGradient(px(kp[0]),py(kp[1]),2,px(kp[0]),py(kp[1]),CELL*0.7);
+        g.addColorStop(0,'rgba(255,60,60,0.35)'); g.addColorStop(1,'rgba(255,60,60,0)');
+        ctx.fillStyle=g; ctx.beginPath(); ctx.arc(px(kp[0]),py(kp[1]),CELL*0.7,0,Math.PI*2); ctx.fill();
+        ctx.restore();
+      }
+    }
+
+    // 可走位置高亮
+    ctx.fillStyle='rgba(0,160,0,0.32)';
+    for(var j=0;j<legal.length;j++){
+      var m=legal[j], cx2=px(m[0]), cy2=py(m[1]);
+      if(board[m[1]][m[0]]){
+        ctx.strokeStyle='rgba(210,40,40,0.75)'; ctx.lineWidth=2.5;
+        ctx.beginPath(); ctx.arc(cx2,cy2,CELL*0.44,0,Math.PI*2); ctx.stroke();
+      } else {
+        ctx.beginPath(); ctx.arc(cx2,cy2,8,0,Math.PI*2); ctx.fill();
+      }
+    }
+    // 选中高亮
+    if(selected){
+      ctx.save();
+      ctx.strokeStyle='rgba(255,200,0,0.95)'; ctx.lineWidth=3.5;
+      ctx.beginPath(); ctx.arc(px(selected[0]),py(selected[1]),CELL*0.52,0,Math.PI*2); ctx.stroke();
+      ctx.restore();
+    }
+
+    // 绘制棋子（跳过动画中的起点）
+    for(var y=0;y<10;y++) for(var x=0;x<9;x++){
+      var p=board[y][x];
+      if(!p) continue;
+      if(anim && anim.fx===x && anim.fy===y) continue; // 动画棋子单独画
+      drawPieceAt(p, px(x), py(y), 1, 1);
+    }
+
+    // 走棋动画棋子
+    if(anim){
+      var t=(now-anim.t0)/(anim.t1-anim.t0);
+      if(t>=1){ t=1; }
+      var et=ease(Math.min(t,1));
+      var ax=px(anim.fx)+(px(anim.tx)-px(anim.fx))*et;
+      var ay=py(anim.fy)+(py(anim.ty)-py(anim.fy))*et;
+      // 移动残影
+      if(t<1){
+        ctx.save(); ctx.globalAlpha=0.25*(1-t);
+        drawPieceAt(anim.piece, ax, ay, 1, 1);
+        ctx.restore();
+      }
+      drawPieceAt(anim.piece, ax, ay, 1+0.08*Math.sin(now*0.01), 1);
+    }
+
+    // 最近一手标记
+    if(history.length){
+      var last=history[history.length-1];
+      ctx.fillStyle='rgba(255,140,0,0.9)';
+      ctx.beginPath(); ctx.arc(px(last.to[0]),py(last.to[1]),4,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function loop(now){
+    if(!lastTime) lastTime=now;
+    // 动画完成处理
+    if(anim && now>=anim.t1){
+      // 落子：如果吃子，生成爆炸粒子
+      if(anim.captured){
+        var cx=px(anim.tx), cy=py(anim.ty);
+        for(var i=0;i<14;i++){
+          var ang=Math.random()*Math.PI*2, spd=0.6+Math.random()*1.2;
+          particles.push({
+            x:cx, y:cy, t0:now, dur:500+Math.random()*300,
+            vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd, dist:CELL*0.8+Math.random()*CELL*0.7,
+            color:anim.captured.side==='r'?'#ff6b4a':'#ffd23e'
+          });
+        }
+      }
+      anim=null;
+      // 换边并判断胜负
+      turn = turn==='r'?'b':'r';
+      if(stepTime>0) stepClock=stepTime;   // 新回合重置本步时钟
+      updateClock();
+      if(!hasLegalMove(board, turn)){
+        gameOver=true;
+        setStatus('🏆 将死！'+(turn==='r'?'黑':'红')+'方获胜');
+        // 胜利礼花
+        for(var j=0;j<30;j++){
+          var ang=Math.random()*Math.PI*2, spd=1.5+Math.random()*2;
+          particles.push({
+            x:px(4), y:py(1+Math.random()*8), t0:now, dur:900+Math.random()*400,
+            vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd, dist:CELL*(1.5+Math.random()*2),
+            color:['#ffd23e','#ff6b4a','#4ac6ff','#7dff6b','#ff9ff3'][j%5]
+          });
+        }
+      } else {
+        refreshStatus();
+      }
+    }
+    draw();
+    lastTime=now;
+    rafId=requestAnimationFrame(loop);
+  }
+
+  // ============ 交互 ============
+  function canvasPos(e){
+    var rect=cv.getBoundingClientRect();
+    var sx=(e.clientX-rect.left)*(W/rect.width)-M;
+    var sy=(e.clientY-rect.top)*(H/rect.height)-M;
+    var x=Math.round(sx/CELL), y=Math.round(sy/CELL);   // 最近交叉点判定（棋子落点）
+    if(!inB(x,y)) return null;
+    if(viewFlip){ x=8-x; y=9-y; }   // 黑方视角：点击映射翻转
+    return [x,y];
+  }
+
+  function doLocalMove(fx, fy, tx, ty){
+    if(gameOver || anim) return;
+    var captured = board[ty][tx];
+    history.push({board:clone(board), from:[fx,fy], to:[tx,ty], side:turn});
+    doMove(board, [fx,fy], [tx,ty]);
+    anim={ fx:fx, fy:fy, tx:tx, ty:ty,
+           piece:board[ty][tx], t0:performance.now(), t1:performance.now()+280, captured:captured };
+    selected=null; legal=[];
+  }
+  function doLocalUndo(){
+    if(!history.length) return;
+    var last=history.pop();
+    board=last.board; turn=last.side; gameOver=false;
+    selected=null; legal=[]; anim=null; particles=[];
+    refreshStatus(); draw();
+  }
+  function doLocalNew(){
+    board=freshBoard(); turn='r'; gameOver=false;
+    history=[]; selected=null; legal=[]; anim=null; particles=[];
+    setStatus('红方先行'); draw();
+  }
+  function handleGameMsg(d){
+    d = d.replace(/[\r\n]+$/,'');   // 去掉服务器消息尾部的换行符
+    if(d.indexOf('GAME|ok|')===0){
+      var parts=d.split('|');
+      var c=parts[2].split(',');
+      doLocalMove(parseInt(c[0]),parseInt(c[1]),parseInt(c[2]),parseInt(c[3]));
+      return;
+    }
+    if(d.indexOf('GAME|created|')===0){
+      gameMode='wait'; myRoomCode=d.split('|')[2]; viewFlip=false; hideClock();
+      mySide = crSide;   // 创建者执色
+      redReady=0; blackReady=0;
+      setStatus('🎮 房间 '+myRoomCode+' · 等待对方加入，双方准备后开始');
+      showReady(myRoomCode);   // 准备面板内含房间码，直接显示
+      return;
+    }
+    if(d.indexOf('GAME|joined|')===0){
+      var jp=d.split('|');
+      mySide=jp[3]; myRoomCode=jp[2];
+      totalTime=parseInt(jp[4])||0; stepTime=parseInt(jp[5])||0;
+      viewFlip=(mySide==='b');
+      redReady=parseInt(jp[6])||0; blackReady=parseInt(jp[7])||0;
+      gameMode='wait';
+      setStatus('房间 '+myRoomCode+' · 等待双方准备');
+      showReady(myRoomCode);
+      return;
+    }
+    if(d.indexOf('GAME|roomstate|')===0){
+      var rp=d.split('|');
+      redReady=parseInt(rp[2])||0; blackReady=parseInt(rp[3])||0;
+      updReadyUI();
+      if(redReady&&blackReady){ hideReady(); }
+      return;
+    }
+    if(d.indexOf('GAME|start|')===0){
+      hideReady();
+      gameMode='online'; mySide=d.split('|')[3]; myRoomCode=d.split('|')[2];
+      totalTime=parseInt(d.split('|')[4])||0; stepTime=parseInt(d.split('|')[5])||0;
+      viewFlip = (mySide==='b');   // 黑方视角翻转棋盘
+      doLocalNew(); setStatus('联机对局中 · 你执'+(mySide==='r'?'红':'黑')+' · 房间 '+myRoomCode+' · 红方先走');
+      startClock();
+      return;
+    }
+    if(d.indexOf('GAME|resumed|')===0){
+      var rp=d.split('|');
+      gameMode='online'; mySide=rp[3]; myRoomCode=rp[2];
+      totalTime=parseInt(rp[4])||0; stepTime=parseInt(rp[5])||0;
+      viewFlip=(mySide==='b');
+      setStatus('🔗 已恢复对局 · 房间 '+myRoomCode);
+      if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|state');   // 请求对局状态重建棋盘
+      return;
+    }
+    if(d.indexOf('GAME|state|')===0){
+      var sp=d.split('|');
+      var fen=sp[2], sturn=sp[4]||'r';
+      var rl=parseInt(sp[5])||0, bl=parseInt(sp[6])||0;
+      board=[]; for(var yy=0;yy<10;yy++){ board.push([]); for(var xx=0;xx<9;xx++) board[yy].push(null); }
+      var items=fen.split(';');
+      for(var i=0;i<items.length;i++){
+        var it=items[i]; if(!it||it.length<4) continue;
+        var ch=it[0], sd=it[1];
+        var ty={k:'k',a:'a',e:'e',h:'h',r:'r',c:'c',p:'p'}[ch];
+        var px2=parseInt(it[2]), py2=parseInt(it[3]);
+        if(ty&&px2>=0&&px2<9&&py2>=0&&py2<10) board[py2][px2]={side:sd,type:ty};
+      }
+      turn=sturn; gameOver=false; selected=null; legal=[]; anim=null;
+      startClock();               // 先建立计时基准（totalTime）
+      redClock=rl; blackClock=bl; // 再用服务器下发的实际剩余时间覆盖
+      if(stepTime>0) stepClock=stepTime;
+      updateClock();
+      draw();
+      setStatus('联机对局中 · 你执'+(mySide==='r'?'红':'黑')+' · 房间 '+myRoomCode+' · '+(turn==='r'?'红':'黑')+'方走棋');
+      return;
+    }
+    if(d.indexOf('GAME|peer_offline')===0){ setStatus('⚠️ 对方掉线，等待重连（60秒）...'); return; }
+    if(d.indexOf('GAME|peer_resumed')===0){ setStatus('✅ 对方已重新连接'); return; }
+    if(d.indexOf('GAME|peer_left')===0){ gameMode='solo'; mySide=null; myRoomCode=null; viewFlip=false; hideClock(); hideReady(); redReady=0; blackReady=0; setStatus('对方已离开 · 回到单机模式'); return; }
+    if(d.indexOf('GAME|time|')===0){
+      var tp=d.split('|');
+      redClock=parseInt(tp[2])||0; blackClock=parseInt(tp[3])||0;
+      updateClock();
+      return;
+    }
+    if(d.indexOf('GAME|timeout|')===0){
+      var over=d.split('|')[2];
+      stopClock();
+      if(over==='r') setStatus('⏰ 红方超时，黑方获胜！');
+      else setStatus('⏰ 黑方超时，红方获胜！');
+      return;
+    }
+    if(d.indexOf('GAME|notturn')===0){ setStatus('⚠️ 还没轮到你'); return; }
+    if(d.indexOf('GAME|noroom')===0){ setStatus('⚠️ 房间不存在'); autoJoinCode=''; return; }
+    if(d.indexOf('GAME|full')===0){ setStatus('⚠️ 房间已满，进不去（最多2人）'); autoJoinCode=''; return; }
+    if(d.indexOf('GAME|already')===0){ setStatus('⚠️ 你已在房间中'); return; }
+    if(d.indexOf('GAME|left')===0){ gameMode='solo'; mySide=null; myRoomCode=null; viewFlip=false; hideClock(); hideReady(); redReady=0; blackReady=0; setStatus('已离开房间 · 单机模式'); return; }
+    if(d.indexOf('GAME|illegal')===0){ setStatus('⚠️ 服务器判定该走法非法'); return; }
+    if(d.indexOf('GAME|noundo')===0){ setStatus('⚠️ 没有可悔的棋'); return; }
+    if(d.indexOf('GAME|undo_pending')===0){ setStatus('⚠️ 已有悔棋请求在处理中'); return; }
+    if(d.indexOf('GAME|undo_wait')===0){ setStatus('↩️ 悔棋请求已发送，等待对方同意...'); return; }
+    if(d.indexOf('GAME|undo_no')===0){ setStatus('❌ 对方拒绝了悔棋'); return; }
+    if(d.indexOf('GAME|undo_req_from|')===0){
+      var us=d.split('|')[2];
+      if(confirm(us==='r'?'对方（红方）请求悔棋，是否同意？':'对方（黑方）请求悔棋，是否同意？')){
+        if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|undo_ans|yes');
+      } else {
+        if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|undo_ans|no');
+      }
+      return;
+    }
+    if(d.indexOf('GAME|undo|ok')===0){
+      if(gameMode==='online'){
+        setStatus('↩️ 悔棋成功，重新开始当前回合');
+        if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|state');   // 拉取回退后的局面+时间
+      } else {
+        doLocalUndo();
+      }
+      return;
+    }
+    if(d.indexOf('GAME|new|ok')===0){ return; }
+    if(d.indexOf('GAME|over')===0){ setStatus('对局已结束，点击重新开始'); return; }
+  }
+  var wsRetry=0;
+  function connectGame(){
+    if(!location.host) return;   // 本地打开(file://)无法连服务器，回退本地模式
+    var proto = location.protocol==='https:'?'wss://':'ws://';
+    try{
+      ws = new WebSocket(proto+location.host+'/ws');
+      ws.onopen = function(){ serverMode=true; wsRetry=0; ws.send('RTOKEN|'+xqToken); ws.send('GAME|new');
+        if(autoJoinCode){
+          setStatus('🎮 正在加入房间 '+autoJoinCode+' ...');
+          ws.send('GAME|join|'+autoJoinCode);
+        } else {
+          setStatus('已连接服务器 · 单机模式（红方先行）');
+        }
+      };
+      ws.onmessage = function(e){ handleGameMsg(e.data); };
+      ws.onclose = function(){ serverMode=false; if(gameMode!=='solo'){ setStatus('⚠️ 连接断开，正在重连...'); } wsRetry++; setTimeout(connectGame, 3000); };   // 自动重连（联机中）
+      ws.onerror = function(){ serverMode=false; };
+    }catch(e){ serverMode=false; }
+  }
+
+  cv.addEventListener('click', function(e){
+    if(gameOver || anim) return;
+    if(gameMode==='wait') return;   // 等待对方，不能走子
+    var pos=canvasPos(e);
+    if(!pos) return;
+    var p=board[pos[1]][pos[0]];
+    if(selected){
+      var hit=false;
+      for(var i=0;i<legal.length;i++) if(legal[i][0]===pos[0]&&legal[i][1]===pos[1]){ hit=true; break; }
+      if(hit){
+        if(serverMode && ws && ws.readyState===WebSocket.OPEN){
+          ws.send('GAME|move|'+selected[0]+','+selected[1]+','+pos[0]+','+pos[1]);
+          selected=null; legal=[];
+          return;
+        }
+        doLocalMove(selected[0], selected[1], pos[0], pos[1]);
+        return;
+      }
+      if(p && p.side===turn && (gameMode!=='online' || p.side===mySide)){ selected=pos; legal=genLegal(board,pos[0],pos[1]); draw(); return; }
+      selected=null; legal=[]; draw(); return;
+    }
+    if(p && p.side===turn && (gameMode!=='online' || p.side===mySide)){ selected=pos; legal=genLegal(board,pos[0],pos[1]); draw(); }
+  });
+
+  document.getElementById('bUndo').addEventListener('click', function(){
+    if(gameMode==='online'){
+      if(!ws||ws.readyState!==WebSocket.OPEN){ setStatus('未连接'); return; }
+      ws.send('GAME|undo_req');
+      setStatus('↩️ 悔棋请求已发送，等待对方同意...');
+      return;
+    }
+    if(serverMode && ws && ws.readyState===WebSocket.OPEN){ ws.send('GAME|undo'); return; }
+    doLocalUndo();
+  });
+  document.getElementById('bRestart').addEventListener('click', function(){
+    if(gameMode==='online'||gameMode==='wait'){ if(ws&&ws.readyState===WebSocket.OPEN) ws.send('GAME|leave'); }
+    if(serverMode && ws && ws.readyState===WebSocket.OPEN && gameMode==='solo'){ ws.send('GAME|new'); }
+    doLocalNew();
+  });
+  document.getElementById('bCreate').addEventListener('click', function(){
+    if(!ws||ws.readyState!==WebSocket.OPEN){ setStatus('⚠️ 未连接服务器，无法联机'); return; }
+    if(gameMode!=='solo'){ setStatus('⚠️ 已在房间中'); return; }
+    document.getElementById('createModal').style.display='flex';
+  });
+  // ---- 创建房间设置 ----
+  var crSide='r';
+  var crSideBtn=document.getElementById('crSide');
+  crSideBtn.addEventListener('click', function(){
+    crSide = crSide==='r' ? 'b' : 'r';
+    crSideBtn.textContent = crSide==='r' ? '🔴 先手（红）' : '⚫ 后手（黑）';
+    crSideBtn.style.background = crSide==='r' ? 'linear-gradient(135deg,#c98d3d,#a96f2b)' : 'linear-gradient(135deg,#4a6fa5,#33547c)';
+  });
+  document.getElementById('crOk').addEventListener('click', function(){
+    var total=parseInt(document.getElementById('crTotal').value)||0;
+    var step=parseInt(document.getElementById('crStep').value)||0;
+    document.getElementById('createModal').style.display='none';
+    ws.send('GAME|create|'+total+'|'+step+'|'+crSide);
+    setStatus('正在创建房间...');
+  });
+  document.getElementById('crCancel').addEventListener('click', function(){
+    document.getElementById('createModal').style.display='none';
+  });
+  document.getElementById('bJoin').addEventListener('click', function(){
+    if(!ws||ws.readyState!==WebSocket.OPEN){ setStatus('⚠️ 未连接服务器，无法联机'); return; }
+    var code=prompt('输入房间码（4位数字）：');
+    if(code&&/^\d{4}$/.test(code.trim())){ ws.send('GAME|join|'+code.trim()); }
+    else setStatus('⚠️ 房间码应为4位数字');
+  });
+  document.getElementById('rdReady').addEventListener('click', setMyReady);
+  document.getElementById('rdClose').addEventListener('click', function(){
+    hideReady();   // 只隐藏面板，房间保留，等待继续
+    setStatus('准备面板已收起 · 房间 '+myRoomCode+' · 点「📋 准备」可重新打开');
+  });
+  document.getElementById('bReadyPanel').addEventListener('click', function(){
+    if(!myRoomCode){ setStatus('当前不在房间中'); return; }
+    if(gameMode==='online'){ setStatus('对局已开始，无需准备面板'); return; }
+    showReady(myRoomCode);
+  });
+  document.getElementById('rdInvite').addEventListener('click', function(){
+    if(!ws||ws.readyState!==WebSocket.OPEN){ setStatus('未连接服务器'); return; }
+    if(!myRoomCode){ setStatus('请先创建房间'); return; }
+    var link = location.origin + '/xiangqi.html?room=' + myRoomCode;
+    var msg = '【游戏邀请】🎮 象棋房间 ' + myRoomCode + '，点链接进入对局：' + link;
+    ws.send(msg);
+    setStatus('📨 邀请已发送到聊天室！');
+  });
+  document.getElementById('bLeave').addEventListener('click', function(){
+    if(gameMode==='solo'){ setStatus('当前不在房间中'); return; }
+    if(ws&&ws.readyState===WebSocket.OPEN){ ws.send('GAME|leave'); }
+    else { gameMode='solo'; mySide=null; myRoomCode=null; viewFlip=false; hideClock(); setStatus('单机模式'); }
+  });
+  // ---- 房间码弹窗 ----
+  function showRoomModal(code){
+    var m=document.getElementById('roomModal');
+    document.getElementById('roomCodeBig').textContent=code;
+    m.style.display='flex';
+  }
+  function hideRoomModal(){
+    document.getElementById('roomModal').style.display='none';
+  }
+  function copyRoomCode(code){
+    var done=function(){ setStatus('✅ 房间码 '+code+' 已复制'); };
+    var fail=function(){ setStatus('复制失败，请手动记下房间码'); };
+    if(navigator.clipboard&&navigator.clipboard.writeText){
+      navigator.clipboard.writeText(code).then(done).catch(function(){
+        legacyCopy(code)?done():fail();
+      });
+    } else { legacyCopy(code)?done():fail(); }
+  }
+  function legacyCopy(text){
+    try{
+      var ta=document.createElement('textarea');
+      ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+      document.body.appendChild(ta); ta.select();
+      var ok=document.execCommand('copy');
+      document.body.removeChild(ta); return ok;
+    }catch(e){ return false; }
+  }
+  document.getElementById('bRoomCode').addEventListener('click', function(){
+    if(!myRoomCode){ setStatus('当前不在房间中，没有房间码'); return; }
+    showRoomModal(myRoomCode);
+  });
+  document.getElementById('roomCopy').addEventListener('click', function(){
+    copyRoomCode(document.getElementById('roomCodeBig').textContent);
+  });
+  document.getElementById('roomClose').addEventListener('click', hideRoomModal);
+  document.getElementById('roomModal').addEventListener('click', function(e){
+    if(e.target===this) hideRoomModal();   // 点击遮罩关闭
+  });
+  document.getElementById('bBack').addEventListener('click', function(){
+    // 如果在房间，先发送"离开房间"，避免下次点邀请被拉回旧房间
+    if(ws && ws.readyState===WebSocket.OPEN && myRoomCode){
+      ws.send('GAME|leave');
+    }
+    setTimeout(function(){ location.href = 'chat.html'; }, 150);   // 留时间让 leave 送达
+  });
+
+  connectGame();
+  rafId=requestAnimationFrame(loop);
+  draw();
+})();;
+</script>
+</body>
+</html>

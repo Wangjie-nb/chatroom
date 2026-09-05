@@ -1,0 +1,47 @@
+name: CI Build
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+
+jobs:
+  build:
+    name: Build & Smoke Test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y g++ make libsqlite3-dev libhiredis-dev
+
+      - name: Build server (Makefile)
+        run: make
+
+      - name: Build engine unit test
+        run: g++ -O2 -std=c++17 -Wno-stringop-overread -I. -o tools/chess_engine_test tools/chess_engine_test.cpp
+
+      - name: Run engine unit test
+        run: ./tools/chess_engine_test
+
+      - name: Smoke test — start server & check static files
+        run: |
+          ./server www 8899 > /tmp/server.log 2>&1 &
+          sleep 2
+          curl -fsS http://127.0.0.1:8899/chat.html -o /dev/null && echo "✔ /chat.html"
+          curl -fsS http://127.0.0.1:8899/xiangqi.html -o /dev/null && echo "✔ /xiangqi.html"
+          curl -fsS http://127.0.0.1:8899/gomoku.html -o /dev/null && echo "✔ /gomoku.html"
+          curl -fsS http://127.0.0.1:8899/ -o /dev/null && echo "✔ / (index)"
+          echo "--- server log ---"
+          cat /tmp/server.log | head -20
+          kill %1 || true
+
+      - name: Verify no runtime artifacts tracked
+        run: |
+          # 数据库/日志/上传目录不应出现在仓库里
+          if git ls-files | grep -E '\.(db|log)$|^uploads/' ; then
+            echo "❌ 仓库中混入了运行时产物，请检查 .gitignore"; exit 1
+          fi
+          echo "✔ 仓库纯净（无 *.db / *.log / uploads）"
